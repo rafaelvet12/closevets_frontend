@@ -1,7 +1,9 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  allowedDevOrigins: [
+    "oct-outline-ethics-thu.trycloudflare.com",
+  ],
 };
 
 export default nextConfig;
