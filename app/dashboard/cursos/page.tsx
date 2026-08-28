@@ -38,7 +38,7 @@ export default function CursosPage() {
 
   const fetchCursos = async () => {
     try {
-      const res = await fetch(`http://127.0.0.1:8000/courses/`);
+      const res = await fetch(`http://https://closevets-backend.onrender.com:8000/courses/`);
       if (res.ok) setCursos(await res.json());
     } catch (error) {
       console.error("Erro ao buscar cursos:", error);
@@ -78,7 +78,7 @@ export default function CursosPage() {
     const numericPrice = price ? Number(price.replace(/\./g, "").replace(",", ".")) : 0.0;
 
     try {
-      const url = isEditMode ? `http://127.0.0.1:8000/courses/${selectedCourse?.id}` : `http://127.0.0.1:8000/courses/`;
+      const url = isEditMode ? `http://https://closevets-backend.onrender.com:8000/courses/${selectedCourse?.id}` : `http://https://closevets-backend.onrender.com:8000/courses/`;
       const method = isEditMode ? "PUT" : "POST";
 
       const res = await fetch(url, {
@@ -104,7 +104,7 @@ export default function CursosPage() {
       title: `Deseja desativar o curso ${course.title}?`,
       onConfirm: async () => {
         try {
-          const res = await fetch(`http://127.0.0.1:8000/courses/${course.id}`, { method: "DELETE" });
+          const res = await fetch(`http://https://closevets-backend.onrender.com:8000/courses/${course.id}`, { method: "DELETE" });
           if (res.ok) { 
             setConfirmModal(null); 
             fetchCursos(); 

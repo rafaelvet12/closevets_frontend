@@ -78,9 +78,9 @@ export default function MatriculasPage() {
   const fetchData = async () => {
     try {
       const [resMatriculas, resAlunos, resTurmas] = await Promise.all([
-        fetch(`http://127.0.0.1:8000/matriculas/`),
-        fetch(`http://127.0.0.1:8000/alunos/`),
-        fetch(`http://127.0.0.1:8000/turmas/`)
+        fetch(`http://https://closevets-backend.onrender.com:8000/matriculas/`),
+        fetch(`http://https://closevets-backend.onrender.com:8000/alunos/`),
+        fetch(`http://https://closevets-backend.onrender.com:8000/turmas/`)
       ]);
 
       if (resMatriculas.ok) setMatriculas(await resMatriculas.json());
@@ -102,7 +102,7 @@ export default function MatriculasPage() {
 
     setLoading(true);
     try {
-      const res = await fetch(`http://127.0.0.1:8000/matriculas/`, {
+      const res = await fetch(`http://https://closevets-backend.onrender.com:8000/matriculas/`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ 
@@ -140,7 +140,7 @@ export default function MatriculasPage() {
     e.preventDefault();
     setLoading(true);
     try {
-      const res = await fetch(`http://127.0.0.1:8000/matriculas/${selectedMatricula?.id}`, {
+      const res = await fetch(`http://https://closevets-backend.onrender.com:8000/matriculas/${selectedMatricula?.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ 
@@ -165,7 +165,7 @@ export default function MatriculasPage() {
       title: `Deseja cancelar a matrícula de ${mat.student_name}?`,
       onConfirm: async () => {
         try {
-          const res = await fetch(`http://127.0.0.1:8000/matriculas/${mat.id}`, {
+          const res = await fetch(`http://https://closevets-backend.onrender.com:8000/matriculas/${mat.id}`, {
             method: "PUT",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ 
