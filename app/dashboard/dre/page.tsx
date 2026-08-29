@@ -35,8 +35,8 @@ export default function DREPage() {
 
   useEffect(() => {
     Promise.all([
-      fetch("http://https://closevets-backend.onrender.com:8000/turmas/").then(res => res.json()),
-      fetch("http://https://closevets-backend.onrender.com:8000/matriculas/").then(res => res.json())
+      fetch("https://closevets-backend.onrender.com/turmas/").then(res => res.json()),
+      fetch("https://closevets-backend.onrender.com/matriculas/").then(res => res.json())
     ])
       .then(([turmasData, matriculasData]) => {
         setTurmas(turmasData);
@@ -49,7 +49,7 @@ export default function DREPage() {
     if (!selectedCohort) { setDreData(null); return; }
     
     setLoading(true);
-    fetch(`http://https://closevets-backend.onrender.com:8000/dashboard/dre/${selectedCohort}`)
+    fetch(`https://closevets-backend.onrender.com/dashboard/dre/${selectedCohort}`)
       .then(res => res.json())
       .then(data => setDreData(data))
       .catch(err => console.error(err))

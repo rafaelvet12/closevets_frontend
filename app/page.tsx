@@ -21,7 +21,7 @@ export default function Home() {
     formData.append("password", password);
 
     try {
-      const response = await fetch("http://https://closevets-backend.onrender.com:8000/auth/login", {
+      const response = await fetch("https://closevets-backend.onrender.com/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
         body: formData,

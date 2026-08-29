@@ -29,7 +29,7 @@ export default function ValidarCertificadoPage({ params }: { params: Promise<{ c
   useEffect(() => {
     async function checkCertificate() {
       try {
-        const res = await fetch(`http://https://closevets-backend.onrender.com:8000/certificados/validar/${codigo}`);
+        const res = await fetch(`https://closevets-backend.onrender.com/certificados/validar/${codigo}`);
         if (res.ok) {
           const data = await res.json();
           setCertData(data);

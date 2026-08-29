@@ -61,7 +61,7 @@ export default function ProfessoresPage() {
 
   const fetchProfessores = async () => {
     try {
-      const res = await fetch(`http://https://closevets-backend.onrender.com:8000/professores/`);
+      const res = await fetch(`https://closevets-backend.onrender.com/professores/`);
       if (res.ok) setProfessores(await res.json());
     } catch (error) { console.error(error); }
   };
@@ -94,7 +94,7 @@ export default function ProfessoresPage() {
     const cleanCpf = cpf.replace(/\D/g, '');
 
     try {
-      const url = isEditMode ? `http://https://closevets-backend.onrender.com:8000/professores/${selectedProfessor?.id}` : `http://https://closevets-backend.onrender.com:8000/professores/`;
+      const url = isEditMode ? `https://closevets-backend.onrender.com/professores/${selectedProfessor?.id}` : `https://closevets-backend.onrender.com/professores/`;
       const method = isEditMode ? "PUT" : "POST";
 
       const res = await fetch(url, {
@@ -128,7 +128,7 @@ export default function ProfessoresPage() {
       title: `Deseja desativar o professor ${prof.name}?`,
       onConfirm: async () => {
         try {
-          const res = await fetch(`http://https://closevets-backend.onrender.com:8000/professores/${prof.id}`, { method: "DELETE" });
+          const res = await fetch(`https://closevets-backend.onrender.com/professores/${prof.id}`, { method: "DELETE" });
           if (res.ok) {
             setConfirmModal(null); fetchProfessores(); showToast("Professor desativado com sucesso.");
           } else { 

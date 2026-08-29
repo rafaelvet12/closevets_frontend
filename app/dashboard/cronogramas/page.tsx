@@ -49,7 +49,7 @@ export default function CronogramasPage() {
   const fetchBaseData = async () => {
     try {
       const [resTurmas, resInstructors] = await Promise.all([
-        fetch(`http://https://closevets-backend.onrender.com:8000/turmas/`), fetch(`http://https://closevets-backend.onrender.com:8000/professores/`)
+        fetch(`https://closevets-backend.onrender.com/turmas/`), fetch(`https://closevets-backend.onrender.com/professores/`)
       ]);
       if (resTurmas.ok) setTurmas(await resTurmas.json());
       if (resInstructors.ok) setInstructors(await resInstructors.json());
@@ -61,7 +61,7 @@ export default function CronogramasPage() {
   const fetchSchedules = async (cohort_id: string) => {
     if (!cohort_id) return;
     try {
-      const res = await fetch(`http://https://closevets-backend.onrender.com:8000/schedules/cohort/${cohort_id}`);
+      const res = await fetch(`https://closevets-backend.onrender.com/schedules/cohort/${cohort_id}`);
       if (res.ok) setSchedules(await res.json());
     } catch (error) { console.error(error); }
   };
@@ -85,7 +85,7 @@ export default function CronogramasPage() {
         date: schDate, start_time: schStart + ":00", end_time: schEnd + ":00",
         topic: schTopic, hours: totalHours
       };
-      const res = await fetch(`http://https://closevets-backend.onrender.com:8000/schedules/`, {
+      const res = await fetch(`https://closevets-backend.onrender.com/schedules/`, {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload)
       });
@@ -109,7 +109,7 @@ export default function CronogramasPage() {
     if (!activeSchedule) return;
 
     try {
-      const res = await fetch(`http://https://closevets-backend.onrender.com:8000/schedules/${activeSchedule.id}/complete`, {
+      const res = await fetch(`https://closevets-backend.onrender.com/schedules/${activeSchedule.id}/complete`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -132,7 +132,7 @@ export default function CronogramasPage() {
 
   const handleDeleteSchedule = async (id: number) => {
     try {
-      const res = await fetch(`http://https://closevets-backend.onrender.com:8000/schedules/${id}`, { method: "DELETE" });
+      const res = await fetch(`https://closevets-backend.onrender.com/schedules/${id}`, { method: "DELETE" });
       if (res.ok) { showToast("Aula removida."); fetchSchedules(selectedCohortId); }
     } catch { showToast("Erro de conexão.", "error"); }
   };

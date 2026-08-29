@@ -61,7 +61,7 @@ export default function AlunosPage() {
 
   const fetchAlunos = async () => {
     try {
-      const res = await fetch("http://https://closevets-backend.onrender.com:8000/alunos/");
+      const res = await fetch("https://closevets-backend.onrender.com/alunos/");
       if (res.ok) setAlunos(await res.json());
     } catch (error) { console.error(error); }
   };
@@ -72,7 +72,7 @@ export default function AlunosPage() {
     setSelectedStudent(student);
     setIsDetailsOpen(true);
     try {
-      const res = await fetch(`http://https://closevets-backend.onrender.com:8000/matriculas/aluno/${student.id}`);
+      const res = await fetch(`https://closevets-backend.onrender.com/matriculas/aluno/${student.id}`);
       if (res.ok) setEnrollments(await res.json());
     } catch (e) { console.error(e); }
   };
@@ -96,7 +96,7 @@ export default function AlunosPage() {
     setLoading(true);
     const cleanCpf = cpf.replace(/\D/g, "");
     try {
-      const url = isEditMode ? `http://https://closevets-backend.onrender.com:8000/alunos/${selectedStudent?.id}` : `http://https://closevets-backend.onrender.com:8000/alunos/`;
+      const url = isEditMode ? `https://closevets-backend.onrender.com/alunos/${selectedStudent?.id}` : `https://closevets-backend.onrender.com/alunos/`;
       const method = isEditMode ? "PUT" : "POST";
       const res = await fetch(url, { 
         method: method, headers: { "Content-Type": "application/json" }, 
@@ -117,7 +117,7 @@ export default function AlunosPage() {
       title: `Deseja desativar o aluno ${student.name}?`,
       onConfirm: async () => {
         try {
-          const res = await fetch(`http://https://closevets-backend.onrender.com:8000/alunos/${student.id}`, { method: "DELETE" });
+          const res = await fetch(`https://closevets-backend.onrender.com/alunos/${student.id}`, { method: "DELETE" });
           if (res.ok) { 
             setIsDetailsOpen(false); 
             setConfirmModal(null); 

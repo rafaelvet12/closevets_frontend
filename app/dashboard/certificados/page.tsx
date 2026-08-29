@@ -38,7 +38,7 @@ export default function CertificadosPage() {
 
   const fetchData = async () => {
     try {
-      const resMat = await fetch("http://https://closevets-backend.onrender.com:8000/matriculas/");
+      const resMat = await fetch("https://closevets-backend.onrender.com/matriculas/");
       if (resMat.ok) {
         await resMat.json();
       }
@@ -57,7 +57,7 @@ export default function CertificadosPage() {
     setLoading(true);
 
     try {
-      const res = await fetch("http://https://closevets-backend.onrender.com:8000/certificados/", {
+      const res = await fetch("https://closevets-backend.onrender.com/certificados/", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ enrollment_id: Number(selectedEnrollmentId) }),

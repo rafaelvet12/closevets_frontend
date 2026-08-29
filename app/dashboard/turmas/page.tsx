@@ -38,8 +38,8 @@ export default function TurmasPage() {
   const fetchData = async () => {
     try {
       const [resTurmas, resCursos] = await Promise.all([
-        fetch(`http://https://closevets-backend.onrender.com:8000/turmas/`),
-        fetch(`http://https://closevets-backend.onrender.com:8000/courses/`)
+        fetch(`https://closevets-backend.onrender.com/turmas/`),
+        fetch(`https://closevets-backend.onrender.com/courses/`)
       ]);
       if (resTurmas.ok) setTurmas(await resTurmas.json());
       if (resCursos.ok) setCursos(await resCursos.json());
@@ -73,7 +73,7 @@ export default function TurmasPage() {
     const numericPrice = price ? Number(price.replace(/\./g, "").replace(",", ".")) : 0.0;
 
     try {
-      const res = await fetch(`http://https://closevets-backend.onrender.com:8000/turmas/`, {
+      const res = await fetch(`https://closevets-backend.onrender.com/turmas/`, {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           internal_name: internalName, code, course_id: Number(courseId),
