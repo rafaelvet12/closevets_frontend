@@ -1,12 +1,14 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { API_BASE_URL } from "@/app/config";
 
 interface Student {
   id: number;
   name: string;
   email: string;
   cpf: string;
+  rg?: string;
   phone?: string;
   profession?: string;
   crmv?: string;
@@ -35,6 +37,7 @@ export default function AlunosPage() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [cpf, setCpf] = useState("");
+  const [rg, setRg] = useState("");
   const [phone, setPhone] = useState("");
   const [profession, setProfession] = useState("Médico Veterinário");
   const [crmv, setCrmv] = useState("");
@@ -48,7 +51,6 @@ export default function AlunosPage() {
   const formatCPF = (value: string) => value.replace(/\D/g, "").replace(/(\d{3})(\d)/, "$1.$2").replace(/(\d{3})(\d)/, "$1.$2").replace(/(\d{3})(\d{1,2})/, "$1-$2").replace(/(-\d{2})\d+?$/, "$1");
   const formatPhone = (value: string) => value.replace(/\D/g, "").replace(/(\d{2})(\d)/, "($1) $2").replace(/(\d{5})(\d)/, "$1-$2").replace(/(-\d{4})\d+?$/, "$1");
   
-  // Função de máscara para o CRMV no padrão XX.XXX-SP
   const formatCRMV = (value: string) => {
     const cleaned = value.toUpperCase().replace(/[^0-9A-Z]/g, "");
     const match = cleaned.match(/^(\d{0,2})(\d{0,3})([A-Z]{0,2})/);
@@ -61,7 +63,7 @@ export default function AlunosPage() {
 
   const fetchAlunos = async () => {
     try {
-      const res = await fetch("https://closevets-backend.onrender.com/alunos/");
+      const res = await fetch(`${API_BASE_URL}/alunos/`);
       if (res.ok) setAlunos(await res.json());
     } catch (error) { console.error(error); }
   };
@@ -72,20 +74,20 @@ export default function AlunosPage() {
     setSelectedStudent(student);
     setIsDetailsOpen(true);
     try {
-      const res = await fetch(`https://closevets-backend.onrender.com/matriculas/aluno/${student.id}`);
+      const res = await fetch(`${API_BASE_URL}/matriculas/aluno/${student.id}`);
       if (res.ok) setEnrollments(await res.json());
     } catch (e) { console.error(e); }
   };
 
   const handleOpenCreateModal = () => { 
-    setIsEditMode(false); setName(""); setEmail(""); setCpf(""); setPhone(""); 
+    setIsEditMode(false); setName(""); setEmail(""); setCpf(""); setRg(""); setPhone(""); 
     setProfession("Médico Veterinário"); setCrmv(""); setOrigin("Instagram");
     setIsModalOpen(true); 
   };
   
   const handleOpenEditModal = (student: Student) => { 
     setIsEditMode(true); setSelectedStudent(student); 
-    setName(student.name); setEmail(student.email); setCpf(formatCPF(student.cpf)); setPhone(student.phone || ""); 
+    setName(student.name); setEmail(student.email); setCpf(formatCPF(student.cpf)); setRg(student.rg || ""); setPhone(student.phone || ""); 
     setProfession(student.profession || "Médico Veterinário"); setCrmv(formatCRMV(student.crmv || ""));
     setOrigin(student.notes?.replace("Origem: ", "") || "Instagram");
     setIsDetailsOpen(false); setIsModalOpen(true); 
@@ -96,11 +98,11 @@ export default function AlunosPage() {
     setLoading(true);
     const cleanCpf = cpf.replace(/\D/g, "");
     try {
-      const url = isEditMode ? `https://closevets-backend.onrender.com/alunos/${selectedStudent?.id}` : `https://closevets-backend.onrender.com/alunos/`;
+      const url = isEditMode ? `${API_BASE_URL}/alunos/${selectedStudent?.id}` : `${API_BASE_URL}/alunos/`;
       const method = isEditMode ? "PUT" : "POST";
       const res = await fetch(url, { 
         method: method, headers: { "Content-Type": "application/json" }, 
-        body: JSON.stringify({ name, email, cpf: cleanCpf, phone, profession, crmv, notes: `Origem: ${origin}` }) 
+        body: JSON.stringify({ name, email, cpf: cleanCpf, rg, phone, profession, crmv, notes: `Origem: ${origin}` }) 
       });
       
       if (res.ok) {
@@ -117,7 +119,7 @@ export default function AlunosPage() {
       title: `Deseja desativar o aluno ${student.name}?`,
       onConfirm: async () => {
         try {
-          const res = await fetch(`https://closevets-backend.onrender.com/alunos/${student.id}`, { method: "DELETE" });
+          const res = await fetch(`${API_BASE_URL}/alunos/${student.id}`, { method: "DELETE" });
           if (res.ok) { 
             setIsDetailsOpen(false); 
             setConfirmModal(null); 
@@ -216,13 +218,14 @@ export default function AlunosPage() {
               <div className="grid grid-cols-2 gap-4">
                 <div className="col-span-2"><label className="block text-sm font-semibold text-[#004aad] mb-1">Nome Completo</label><input required value={name} onChange={e => setName(e.target.value)} className="w-full px-4 py-3 rounded-lg border" placeholder="João da Silva" /></div>
                 <div><label className="block text-sm font-semibold text-[#004aad] mb-1">CPF</label><input required value={cpf} onChange={e => setCpf(formatCPF(e.target.value))} className="w-full px-4 py-3 rounded-lg border" placeholder="000.000.000-00" /></div>
-                <div><label className="block text-sm font-semibold text-[#004aad] mb-1">Profissão</label><select value={profession} onChange={e => setProfession(e.target.value)} className="w-full px-4 py-3 rounded-lg border bg-white"><option>Médico Veterinário</option><option>Estudante de Med. Veterinária</option><option>Outro</option></select></div>
+                <div><label className="block text-sm font-semibold text-[#004aad] mb-1">RG</label><input value={rg} onChange={e => setRg(e.target.value)} className="w-full px-4 py-3 rounded-lg border" placeholder="00.000.000-0" /></div>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div><label className="block text-sm font-semibold text-[#004aad] mb-1">WhatsApp</label><input value={phone} onChange={e => setPhone(formatPhone(e.target.value))} className="w-full px-4 py-3 rounded-lg border" placeholder="(00) 00000-0000" /></div>
                 <div><label className="block text-sm font-semibold text-[#004aad] mb-1">E-mail</label><input required type="email" value={email} onChange={e => setEmail(e.target.value)} className="w-full px-4 py-3 rounded-lg border" /></div>
               </div>
               <div className="grid grid-cols-2 gap-4">
+                <div><label className="block text-sm font-semibold text-[#004aad] mb-1">Profissão</label><select value={profession} onChange={e => setProfession(e.target.value)} className="w-full px-4 py-3 rounded-lg border bg-white"><option>Médico Veterinário</option><option>Estudante de Med. Veterinária</option><option>Outro</option></select></div>
                 <div>
                   <label className="block text-sm font-semibold text-[#004aad] mb-1">CRMV</label>
                   <input 
@@ -233,7 +236,7 @@ export default function AlunosPage() {
                     placeholder="Ex: 12.345-SP" 
                   />
                 </div>
-                <div><label className="block text-sm font-semibold text-[#004aad] mb-1">Origem do Aluno</label><select value={origin} onChange={e => setOrigin(e.target.value)} className="w-full px-4 py-3 rounded-lg border bg-white"><option>Instagram</option><option>Google</option><option>Indicação</option><option>WhatsApp</option><option>Aluno Antigo</option><option>Outro</option></select></div>
+                <div className="col-span-2"><label className="block text-sm font-semibold text-[#004aad] mb-1">Origem do Aluno</label><select value={origin} onChange={e => setOrigin(e.target.value)} className="w-full px-4 py-3 rounded-lg border bg-white"><option>Instagram</option><option>Google</option><option>Indicação</option><option>WhatsApp</option><option>Aluno Antigo</option><option>Outro</option></select></div>
               </div>
               <div className="pt-4 flex gap-3">
                 <button type="button" onClick={() => setIsModalOpen(false)} className="flex-1 bg-slate-100 font-bold py-3 rounded-lg">CANCELAR</button>
@@ -255,9 +258,10 @@ export default function AlunosPage() {
               <div className="grid grid-cols-2 gap-4 bg-slate-50 p-4 rounded-xl border border-slate-100">
                 <div className="col-span-2"><span className="block text-xs font-semibold text-slate-400 uppercase">E-mail</span><span className="text-slate-700 font-medium break-all">{selectedStudent.email}</span></div>
                 <div><span className="block text-xs font-semibold text-slate-400 uppercase">CPF</span><span className="text-slate-700 font-medium">{formatCPF(selectedStudent.cpf)}</span></div>
+                <div><span className="block text-xs font-semibold text-slate-400 uppercase">RG</span><span className="text-slate-700 font-medium">{selectedStudent.rg || "Não informado"}</span></div>
                 <div><span className="block text-xs font-semibold text-slate-400 uppercase">Telefone</span><span className="text-slate-700 font-medium">{selectedStudent.phone || "Não informado"}</span></div>
                 <div><span className="block text-xs font-semibold text-slate-400 uppercase">{selectedStudent.profession || "Profissão"}</span><span className="text-[#004aad] font-bold block">{selectedStudent.crmv || "S/ Registro"}</span></div>
-                <div><span className="block text-xs font-semibold text-slate-400 uppercase">Marketing</span><span className="text-slate-700 font-medium">{selectedStudent.notes || "S/ Origem"}</span></div>
+                <div className="col-span-2"><span className="block text-xs font-semibold text-slate-400 uppercase">Marketing</span><span className="text-slate-700 font-medium">{selectedStudent.notes || "S/ Origem"}</span></div>
               </div>
               <div>
                 <h3 className="font-heading text-lg text-[#004aad] mb-3 border-b border-slate-100 pb-2">Histórico de Turmas</h3>

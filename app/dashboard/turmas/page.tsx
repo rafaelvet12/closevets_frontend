@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import { API_BASE_URL } from "@/app/config";
 
 interface Cohort {
   id: number;
@@ -38,8 +39,8 @@ export default function TurmasPage() {
   const fetchData = async () => {
     try {
       const [resTurmas, resCursos] = await Promise.all([
-        fetch(`https://closevets-backend.onrender.com/turmas/`),
-        fetch(`https://closevets-backend.onrender.com/courses/`)
+        fetch(`${API_BASE_URL}/turmas/`),
+        fetch(`${API_BASE_URL}/courses/`)
       ]);
       if (resTurmas.ok) setTurmas(await resTurmas.json());
       if (resCursos.ok) setCursos(await resCursos.json());
@@ -73,11 +74,11 @@ export default function TurmasPage() {
     const numericPrice = price ? Number(price.replace(/\./g, "").replace(",", ".")) : 0.0;
 
     try {
-      const res = await fetch(`https://closevets-backend.onrender.com/turmas/`, {
+      const res = await fetch(`${API_BASE_URL}/turmas/`, {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           internal_name: internalName, code, course_id: Number(courseId),
-          hours: Number(hours), price: numericPrice, status: "PLANEJADA"
+          hours: Number(hours), price: numericPrice, status: "planejada"
         })
       });
       if (res.ok) {

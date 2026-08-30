@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { API_BASE_URL } from "@/app/config";
 
 interface Cohort {
   id: number;
@@ -35,8 +36,8 @@ export default function DREPage() {
 
   useEffect(() => {
     Promise.all([
-      fetch("https://closevets-backend.onrender.com/turmas/").then(res => res.json()),
-      fetch("https://closevets-backend.onrender.com/matriculas/").then(res => res.json())
+      fetch(`${API_BASE_URL}/turmas/`).then(res => res.json()),
+      fetch(`${API_BASE_URL}/matriculas/`).then(res => res.json())
     ])
       .then(([turmasData, matriculasData]) => {
         setTurmas(turmasData);
@@ -49,7 +50,7 @@ export default function DREPage() {
     if (!selectedCohort) { setDreData(null); return; }
     
     setLoading(true);
-    fetch(`https://closevets-backend.onrender.com/dashboard/dre/${selectedCohort}`)
+    fetch(`${API_BASE_URL}/dashboard/dre/${selectedCohort}`)
       .then(res => res.json())
       .then(data => setDreData(data))
       .catch(err => console.error(err))

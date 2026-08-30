@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { API_BASE_URL } from "@/app/config";
 
 // --- FUNÇÕES DE MÁSCARA ---
 const handleMaskCPF = (value: string) => {
@@ -61,7 +62,7 @@ export default function ProfessoresPage() {
 
   const fetchProfessores = async () => {
     try {
-      const res = await fetch(`https://closevets-backend.onrender.com/professores/`);
+      const res = await fetch(`${API_BASE_URL}/professores/`);
       if (res.ok) setProfessores(await res.json());
     } catch (error) { console.error(error); }
   };
@@ -94,7 +95,7 @@ export default function ProfessoresPage() {
     const cleanCpf = cpf.replace(/\D/g, '');
 
     try {
-      const url = isEditMode ? `https://closevets-backend.onrender.com/professores/${selectedProfessor?.id}` : `https://closevets-backend.onrender.com/professores/`;
+      const url = isEditMode ? `${API_BASE_URL}/professores/${selectedProfessor?.id}` : `${API_BASE_URL}/professores/`;
       const method = isEditMode ? "PUT" : "POST";
 
       const res = await fetch(url, {
@@ -128,7 +129,7 @@ export default function ProfessoresPage() {
       title: `Deseja desativar o professor ${prof.name}?`,
       onConfirm: async () => {
         try {
-          const res = await fetch(`https://closevets-backend.onrender.com/professores/${prof.id}`, { method: "DELETE" });
+          const res = await fetch(`${API_BASE_URL}/professores/${prof.id}`, { method: "DELETE" });
           if (res.ok) {
             setConfirmModal(null); fetchProfessores(); showToast("Professor desativado com sucesso.");
           } else { 

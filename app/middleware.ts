@@ -5,13 +5,15 @@ export function middleware(request: NextRequest) {
   // Coloque aqui a sua lógica de verificação de token/sessão se houver
   const token = request.cookies.get('token')?.value; // Exemplo de cookie
 
-  // Se for a rota de login ou páginas públicas, deixa passar
+  // Se for a rota de login (raiz) ou páginas públicas, deixa passar
   const url = request.nextUrl.pathname;
-  if (url.startsWith('/login') || url.startsWith('/api')) {
+  if (url === '/' || url.startsWith('/api')) {
     return NextResponse.next();
   }
 
-  // Exemplo básico de proteção
+  // Proteção real hoje é feita no layout.tsx (client-side, via localStorage),
+  // já que o token não fica salvo em cookie. Se migrar para cookie no futuro,
+  // pode reativar a checagem abaixo:
   // if (!token && url.startsWith('/dashboard')) {
   //   return NextResponse.redirect(new URL('/login', request.url));
   // }

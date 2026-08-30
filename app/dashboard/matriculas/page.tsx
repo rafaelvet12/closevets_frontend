@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { API_BASE_URL } from "@/app/config";
 
 interface EnrollmentData {
   id: number;
@@ -75,12 +76,15 @@ export default function MatriculasPage() {
     setTimeout(() => setToast(null), 4000);
   };
 
+  // Formatador visual de ID para MAT-00000
+  const formatMatriculaId = (id: number) => `MAT-${id.toString().padStart(5, "0")}`;
+
   const fetchData = async () => {
     try {
       const [resMatriculas, resAlunos, resTurmas] = await Promise.all([
-        fetch(`https://closevets-backend.onrender.com/matriculas/`),
-        fetch(`https://closevets-backend.onrender.com/alunos/`),
-        fetch(`https://closevets-backend.onrender.com/turmas/`)
+        fetch(`${API_BASE_URL}/matriculas/`),
+        fetch(`${API_BASE_URL}/alunos/`),
+        fetch(`${API_BASE_URL}/turmas/`)
       ]);
 
       if (resMatriculas.ok) setMatriculas(await resMatriculas.json());
@@ -102,7 +106,7 @@ export default function MatriculasPage() {
 
     setLoading(true);
     try {
-      const res = await fetch(`https://closevets-backend.onrender.com/matriculas/`, {
+      const res = await fetch(`${API_BASE_URL}/matriculas/`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ 
@@ -140,7 +144,7 @@ export default function MatriculasPage() {
     e.preventDefault();
     setLoading(true);
     try {
-      const res = await fetch(`https://closevets-backend.onrender.com/matriculas/${selectedMatricula?.id}`, {
+      const res = await fetch(`${API_BASE_URL}/matriculas/${selectedMatricula?.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ 
@@ -165,7 +169,7 @@ export default function MatriculasPage() {
       title: `Deseja cancelar a matrícula de ${mat.student_name}?`,
       onConfirm: async () => {
         try {
-          const res = await fetch(`https://closevets-backend.onrender.com/matriculas/${mat.id}`, {
+          const res = await fetch(`${API_BASE_URL}/matriculas/${mat.id}`, {
             method: "PUT",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ 
@@ -250,8 +254,11 @@ export default function MatriculasPage() {
           <div className="divide-y divide-slate-100">
             {filteredMatriculas.map((mat) => (
               <div key={mat.id} className="grid grid-cols-6 p-4 items-center hover:bg-slate-50 transition-colors font-body text-slate-700">
-                <div className="col-span-2 font-bold text-[#004aad]">{mat.student_name}
-                  <span className="block text-xs text-slate-500 font-medium mt-0.5">{mat.course_name} (R$ {mat.final_price.toFixed(2)})</span>
+                <div className="col-span-2 font-bold text-[#004aad]">
+                  {mat.student_name}
+                  <span className="block text-xs text-slate-500 font-medium mt-0.5">
+                    <strong className="text-[#38b6ff] mr-1">{formatMatriculaId(mat.id)}</strong> • {mat.course_name} (R$ {mat.final_price.toFixed(2)})
+                  </span>
                 </div>
                 <div className="text-slate-600 font-semibold text-sm">{mat.payment_method}</div>
                 <div>
@@ -330,7 +337,10 @@ export default function MatriculasPage() {
               <button onClick={() => setIsEditModalOpen(false)} className="text-white/70 hover:text-white text-xl">&times;</button>
             </div>
             <form onSubmit={handleUpdateStatus} className="p-6 space-y-4 font-body">
-              <p className="text-sm text-slate-500 mb-2">Aluno: <strong className="text-[#004aad]">{selectedMatricula.student_name}</strong> | Turma: <strong className="text-[#004aad]">{selectedMatricula.course_name}</strong></p>
+              <p className="text-sm text-slate-500 mb-2">
+                Nº Matrícula: <strong className="text-[#38b6ff]">{formatMatriculaId(selectedMatricula.id)}</strong><br/>
+                Aluno: <strong className="text-[#004aad]">{selectedMatricula.student_name}</strong> | Turma: <strong className="text-[#004aad]">{selectedMatricula.course_name}</strong>
+              </p>
               
               <div>
                 <label className="block text-sm font-semibold text-[#004aad] mb-1">Status da Matrícula</label>

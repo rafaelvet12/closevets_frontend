@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { API_BASE_URL } from "@/app/config";
 
 interface Course {
   id: number;
@@ -38,7 +39,7 @@ export default function CursosPage() {
 
   const fetchCursos = async () => {
     try {
-      const res = await fetch(`https://closevets-backend.onrender.com/courses/`);
+      const res = await fetch(`${API_BASE_URL}/courses/`);
       if (res.ok) setCursos(await res.json());
     } catch (error) {
       console.error("Erro ao buscar cursos:", error);
@@ -78,7 +79,7 @@ export default function CursosPage() {
     const numericPrice = price ? Number(price.replace(/\./g, "").replace(",", ".")) : 0.0;
 
     try {
-      const url = isEditMode ? `https://closevets-backend.onrender.com/courses/${selectedCourse?.id}` : `https://closevets-backend.onrender.com/courses/`;
+      const url = isEditMode ? `${API_BASE_URL}/courses/${selectedCourse?.id}` : `${API_BASE_URL}/courses/`;
       const method = isEditMode ? "PUT" : "POST";
 
       const res = await fetch(url, {
@@ -104,7 +105,7 @@ export default function CursosPage() {
       title: `Deseja desativar o curso ${course.title}?`,
       onConfirm: async () => {
         try {
-          const res = await fetch(`https://closevets-backend.onrender.com/courses/${course.id}`, { method: "DELETE" });
+          const res = await fetch(`${API_BASE_URL}/courses/${course.id}`, { method: "DELETE" });
           if (res.ok) { 
             setConfirmModal(null); 
             fetchCursos(); 

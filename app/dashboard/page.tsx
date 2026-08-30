@@ -78,7 +78,7 @@ export default function DashboardPage() {
       <div className="mb-8 flex justify-between items-end">
         <div>
           <h1 className="font-heading text-4xl text-[#004aad] uppercase">Visão Geral</h1>
-          <p className="font-body text-slate-500 mt-1">Bem-vindo de volta, Rafael. Aqui está o resumo da sua operação.</p>
+          <p className="font-body text-slate-500 mt-1">Bem-vindo de volta. Aqui está o resumo da sua operação.</p>
         </div>
       </div>
 

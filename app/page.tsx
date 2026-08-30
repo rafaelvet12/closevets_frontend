@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { API_BASE_URL } from "./config";
 
 export default function Home() {
   const router = useRouter();
@@ -21,7 +22,7 @@ export default function Home() {
     formData.append("password", password);
 
     try {
-      const response = await fetch("https://closevets-backend.onrender.com/auth/login", {
+      const response = await fetch(`${API_BASE_URL}/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
         body: formData,
@@ -31,7 +32,7 @@ export default function Home() {
         const data = await response.json();
         // Salva a chave de segurança no navegador
         localStorage.setItem("closevets_token", data.access_token);
-        // Redireciona para o painel de controle (que criaremos a seguir)
+        // Redireciona para o painel de controle
         router.push("/dashboard");
       } else {
         setError("E-mail ou senha incorretos.");

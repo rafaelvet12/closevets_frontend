@@ -1,82 +1,87 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { API_BASE_URL } from "@/app/config";
 
-interface CertificateItem {
+interface CertificateData {
   id: number;
-  uuid_code: string;
   enrollment_id: number;
+  uuid_code: string;
+  status: string;
+  issued_at: string;
   snapshot_data: {
     aluno_nome: string;
     curso_nome: string;
     turma_codigo: string;
     carga_horaria: number;
   };
-  status: string;
-  issued_at: string;
-}
-
-interface EnrollmentOption {
-  id: number;
-  student_name: string;
-  course_name: string;
 }
 
 export default function CertificadosPage() {
-  const [certificados, setCertificados] = useState<CertificateItem[]>([]);
-  const [matriculas, setMatriculas] = useState<EnrollmentOption[]>([]);
+  const [certificados, setCertificados] = useState<CertificateData[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [selectedEnrollmentId, setSelectedEnrollmentId] = useState("");
+  const [matriculaId, setMatriculaId] = useState("");
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
 
   const showToast = (message: string, type: "success" | "error" = "success") => {
     setToast({ message, type });
-    setTimeout(() => setToast(null), 4000);
+    setTimeout(() => setToast(null), 5000);
   };
 
-  const fetchData = async () => {
+  const fetchCertificados = async () => {
     try {
-      const resMat = await fetch("https://closevets-backend.onrender.com/matriculas/");
-      if (resMat.ok) {
-        await resMat.json();
-      }
+      const res = await fetch(`${API_BASE_URL}/certificados/`);
+      if (res.ok) setCertificados(await res.json());
     } catch (error) {
-      console.error("Erro ao carregar dados:", error);
+      console.error("Erro ao buscar certificados:", error);
     }
   };
 
-  useEffect(() => {
-    fetchData();
-  }, []);
+  useEffect(() => { fetchCertificados(); }, []);
 
-  const handleIssueCertificate = async (e: React.FormEvent) => {
+  const handleEmitir = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedEnrollmentId) return;
+    if (!matriculaId) return;
+
     setLoading(true);
+    // Limpa qualquer prefixo (como MAT-) para enviar só o número
+    const cleanId = matriculaId.replace(/\D/g, "");
 
     try {
-      const res = await fetch("https://closevets-backend.onrender.com/certificados/", {
+      const res = await fetch(`${API_BASE_URL}/certificados/`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ enrollment_id: Number(selectedEnrollmentId) }),
+        body: JSON.stringify({ enrollment_id: Number(cleanId) }),
       });
-
+      
       const data = await res.json();
+      
       if (res.ok) {
         setIsModalOpen(false);
-        showToast(`Certificado emitido com sucesso! Código: ${data.uuid_code}`);
-        setSelectedEnrollmentId("");
+        setMatriculaId("");
+        fetchCertificados();
+        showToast(`Sucesso! Certificado ${data.uuid_code} emitido.`);
       } else {
+        // Exibe a mensagem de bloqueio (se não estiver CONCLUIDO)
         showToast(data.detail || "Erro ao emitir certificado.", "error");
       }
-    } catch {
+    } catch (error) {
       showToast("Erro de conexão.", "error");
     } finally {
       setLoading(false);
     }
   };
+
+  const handleDownload = (uuid: string) => {
+    window.open(`${API_BASE_URL}/certificados/${uuid}/download`, "_blank");
+  };
+
+  const filtered = certificados.filter(c => 
+    c.uuid_code.toLowerCase().includes(searchTerm.toLowerCase()) || 
+    c.snapshot_data.aluno_nome.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   return (
     <div className="animate-fade-in">
@@ -84,7 +89,7 @@ export default function CertificadosPage() {
         <div className="fixed bottom-6 right-6 z-[80]">
           <div className={`px-6 py-4 rounded-xl shadow-2xl flex items-center gap-4 text-white font-body text-sm font-semibold ${toast.type === "success" ? "bg-[#004aad] border border-[#38b6ff]" : "bg-red-600"}`}>
             <span>{toast.message}</span>
-            <button onClick={() => setToast(null)} className="text-white/80 hover:text-white font-bold">&times;</button>
+            <button onClick={() => setToast(null)} className="text-white/80 hover:text-white font-bold text-lg">&times;</button>
           </div>
         </div>
       )}
@@ -95,64 +100,74 @@ export default function CertificadosPage() {
           <p className="font-body text-slate-500 mt-1">Emissão automática baseada em histórico congelado por Snapshot.</p>
         </div>
         
-        {/* Container fixo para evitar expansão infinita */}
         <div className="flex items-center gap-4 w-full md:w-auto">
-          <div className="w-full md:w-64 flex-shrink-0">
-            <input 
-              type="text" 
-              placeholder="Buscar por código ou aluno..." 
-              value={searchTerm} 
-              onChange={(e) => setSearchTerm(e.target.value)} 
-              className="w-full px-4 py-3 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#38b6ff] text-slate-700 font-body text-sm shadow-sm" 
-            />
-          </div>
-          <button 
-            onClick={() => setIsModalOpen(true)} 
-            className="bg-[#004aad] hover:bg-[#003882] text-[#d4ed31] font-heading px-6 py-3 rounded-lg shadow-sm whitespace-nowrap transition-colors flex-shrink-0"
-          >
+          <input type="text" placeholder="Buscar por código ou aluno..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full md:w-64 px-4 py-3 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#38b6ff] text-slate-700 font-body text-sm shadow-sm" />
+          <button onClick={() => setIsModalOpen(true)} className="bg-[#004aad] hover:bg-[#003882] text-white font-heading px-6 py-3 rounded-lg shadow-sm whitespace-nowrap">
             EMITIR CERTIFICADO
           </button>
         </div>
       </div>
 
-      <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-8 text-center">
-        <div className="max-w-md mx-auto space-y-4">
-          <div className="w-16 h-16 bg-[#38b6ff]/10 text-[#004aad] rounded-full flex items-center justify-center mx-auto">
-            <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-            </svg>
-          </div>
-          <h3 className="font-heading text-xl text-[#004aad]">Painel de Emissão Pronto</h3>
-          <p className="font-body text-sm text-slate-500">
-            O backend protege o histórico contra alterações e gera os arquivos em PDF dinamicamente. Clique em &quot;Emitir Certificado&quot; para iniciar uma nova emissão por matrícula.
-          </p>
+      <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+        <div className="bg-[#f8fafc] grid grid-cols-6 p-4 border-b border-slate-100 font-body font-bold text-slate-500 text-sm uppercase tracking-wider">
+          <div className="col-span-2">Aluno / Curso</div>
+          <div>Código Único</div>
+          <div>Emissão</div>
+          <div className="text-right col-span-2">Ações</div>
         </div>
+        
+        {filtered.length === 0 ? (
+          <div className="p-12 text-center text-slate-500 font-body">Nenhum certificado emitido.</div>
+        ) : (
+          <div className="divide-y divide-slate-100">
+            {filtered.map((cert) => (
+              <div key={cert.id} className="grid grid-cols-6 p-4 items-center hover:bg-slate-50 transition-colors font-body text-slate-700">
+                <div className="col-span-2 font-bold text-[#004aad]">
+                  {cert.snapshot_data.aluno_nome}
+                  <span className="block text-xs text-slate-500 font-medium mt-0.5">
+                    {cert.snapshot_data.curso_nome} ({cert.snapshot_data.carga_horaria}h)
+                  </span>
+                </div>
+                <div className="text-slate-600 font-mono text-sm">{cert.uuid_code}</div>
+                <div className="text-sm">{new Date(cert.issued_at).toLocaleDateString('pt-BR')}</div>
+                <div className="text-right col-span-2 flex items-center justify-end gap-3">
+                  <button onClick={() => handleDownload(cert.uuid_code)} className="text-[#38b6ff] hover:text-[#004aad] font-bold text-sm transition-colors flex items-center gap-1">
+                    Baixar PDF
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {isModalOpen && (
-        <div className="fixed inset-0 bg-slate-900/50 flex items-center justify-center z-50 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden">
-            <div className="bg-[#004aad] p-6 text-white flex justify-between items-center">
-              <h2 className="font-heading text-2xl uppercase">Emitir Certificado</h2>
+        <div className="fixed inset-0 bg-slate-900/60 flex items-center justify-center z-50 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm overflow-hidden">
+             <div className="bg-[#004aad] p-5 text-white flex justify-between items-center">
+              <h2 className="font-heading text-xl uppercase">Nova Emissão</h2>
               <button onClick={() => setIsModalOpen(false)} className="text-white/70 hover:text-white text-xl">&times;</button>
             </div>
-            <form onSubmit={handleIssueCertificate} className="p-6 space-y-4 font-body">
+            <form onSubmit={handleEmitir} className="p-6 space-y-4 font-body">
               <div>
-                <label className="block text-sm font-semibold text-[#004aad] mb-1">ID da Matrícula Concluída</label>
+                <label className="block text-sm font-semibold text-[#004aad] mb-1">Número da Matrícula</label>
                 <input 
-                  type="number" 
+                  type="text" 
                   required 
-                  value={selectedEnrollmentId} 
-                  onChange={e => setSelectedEnrollmentId(e.target.value)} 
-                  className="w-full px-4 py-3 rounded-lg border border-gray-200 text-slate-800" 
-                  placeholder="Ex: 1" 
+                  value={matriculaId} 
+                  onChange={(e) => setMatriculaId(e.target.value)} 
+                  placeholder="Ex: MAT-00015"
+                  className="w-full px-4 py-3 rounded-lg border border-gray-200 text-slate-800 bg-white"
                 />
-                <p className="text-xs text-slate-400 mt-1">Informe o ID da matrícula ativa do aluno na turma desejada.</p>
+                <p className="text-xs text-slate-400 mt-2 text-justify">
+                  Insira o ID da matrícula. O sistema bloqueará automaticamente a emissão caso o status da matrícula não esteja marcado como "CONCLUÍDO".
+                </p>
               </div>
-              <div className="pt-4 flex gap-3">
-                <button type="button" onClick={() => setIsModalOpen(false)} className="flex-1 bg-slate-100 font-bold py-3 rounded-lg text-sm">CANCELAR</button>
-                <button type="submit" disabled={loading} className="flex-1 bg-[#d4ed31] text-[#004aad] font-bold py-3 rounded-lg text-sm uppercase disabled:opacity-50">
-                  {loading ? "GERANDO..." : "GERAR PDF"}
+              
+              <div className="pt-2 flex gap-3">
+                <button type="button" onClick={() => setIsModalOpen(false)} className="flex-1 bg-slate-100 text-slate-600 font-bold py-3 rounded-lg text-sm">CANCELAR</button>
+                <button type="submit" disabled={loading} className="flex-1 bg-[#004aad] hover:bg-[#003882] text-white font-bold py-3 rounded-lg text-sm transition-colors">
+                  {loading ? "VALIDANDO..." : "EMITIR"}
                 </button>
               </div>
             </form>
