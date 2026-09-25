@@ -33,7 +33,11 @@ export default function FinanceiroPage() {
   
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
+  
+  // Novos Filtros Adicionados
   const [filterType, setFilterType] = useState("ALL");
+  const [filterStatus, setFilterStatus] = useState("ALL");
+  const [filterMonth, setFilterMonth] = useState("ALL");
 
   const [type, setType] = useState("EXPENSE");
   const [category, setCategory] = useState("Pagamento de Professor");
@@ -159,14 +163,30 @@ export default function FinanceiroPage() {
     } catch (e) { showToast("Erro na comunicação", "error"); }
   };
 
-  const receitasPagas = transactions.filter(t => isIncome(t.type) && isPaid(t.status)).reduce((acc, curr) => acc + curr.amount_net, 0);
-  const despesasPagas = transactions.filter(t => !isIncome(t.type) && isPaid(t.status)).reduce((acc, curr) => acc + curr.amount_net, 0);
+  // Extrai os meses disponíveis para o filtro dinâmico (formato AAAA-MM)
+  const availableMonths = Array.from(new Set(transactions.map(t => t.due_date?.substring(0, 7)).filter(Boolean))).sort().reverse();
+  const formatMonthBR = (yyyyMm: string) => { const [y, m] = yyyyMm.split("-"); return `${m}/${y}`; };
+
+  // Filtra as transações para calcular os CARDS com base no mês selecionado
+  const monthFilteredTransactions = filterMonth === "ALL" 
+    ? transactions 
+    : transactions.filter(t => t.due_date?.startsWith(filterMonth));
+
+  const receitasPagas = monthFilteredTransactions.filter(t => isIncome(t.type) && isPaid(t.status)).reduce((acc, curr) => acc + curr.amount_net, 0);
+  const despesasPagas = monthFilteredTransactions.filter(t => !isIncome(t.type) && isPaid(t.status)).reduce((acc, curr) => acc + curr.amount_net, 0);
   const saldoCaixa = receitasPagas - despesasPagas;
 
+  // Filtra a LISTA de transações com todos os filtros aplicados
   const filteredTransactions = transactions.filter(t => {
     const matchSearch = t.description.toLowerCase().includes(searchTerm.toLowerCase()) || t.category.toLowerCase().includes(searchTerm.toLowerCase());
     const matchType = filterType === "ALL" || (filterType === "INCOME" ? isIncome(t.type) : !isIncome(t.type));
-    return matchSearch && matchType;
+    const matchMonth = filterMonth === "ALL" || t.due_date?.startsWith(filterMonth);
+    
+    let matchStatus = true;
+    if (filterStatus === "PAID") matchStatus = isPaid(t.status);
+    if (filterStatus === "PENDING") matchStatus = isPending(t.status);
+
+    return matchSearch && matchType && matchMonth && matchStatus;
   });
 
   return (
@@ -185,8 +205,8 @@ export default function FinanceiroPage() {
           <h1 className="font-heading text-4xl text-[#004aad] uppercase">Gestão Financeira</h1>
           <p className="font-body text-slate-500 mt-1">Cobranças geradas e pagamentos administrativos.</p>
         </div>
-        <button onClick={handleOpenCreateModal} className="bg-[#004aad] hover:bg-[#003882] text-[#d4ed31] font-heading px-6 py-3 rounded-lg flex items-center gap-2 transition-colors shadow-sm">
-          LANCAR DESPESA / EXTRA
+        <button onClick={handleOpenCreateModal} className="bg-[#004aad] hover:bg-[#003882] text-[#d4ed31] font-heading px-6 py-3 rounded-lg flex items-center gap-2 transition-colors shadow-sm whitespace-nowrap">
+          LANÇAR DESPESA / EXTRA
         </button>
       </div>
 
@@ -224,13 +244,36 @@ export default function FinanceiroPage() {
       </div>
 
       <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
-        <div className="p-4 border-b border-slate-100 flex flex-col md:flex-row justify-between items-center gap-4 bg-[#f8fafc]">
-          <div className="flex bg-white rounded-lg border border-slate-200 p-1">
-            <button onClick={() => setFilterType("ALL")} className={`px-4 py-1.5 rounded-md text-sm font-bold ${filterType === "ALL" ? "bg-[#004aad] text-white" : "text-slate-500 hover:bg-slate-50"}`}>Todos</button>
-            <button onClick={() => setFilterType("INCOME")} className={`px-4 py-1.5 rounded-md text-sm font-bold ${filterType === "INCOME" ? "bg-green-600 text-white" : "text-slate-500 hover:bg-slate-50"}`}>Receitas</button>
-            <button onClick={() => setFilterType("EXPENSE")} className={`px-4 py-1.5 rounded-md text-sm font-bold ${filterType === "EXPENSE" ? "bg-red-600 text-white" : "text-slate-500 hover:bg-slate-50"}`}>Despesas</button>
+        
+        {/* BARRA DE FILTROS APRIMORADA */}
+        <div className="p-4 border-b border-slate-100 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 bg-[#f8fafc]">
+          <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto">
+            
+            <div className="flex bg-white rounded-lg border border-slate-200 p-1">
+              <button onClick={() => setFilterType("ALL")} className={`px-3 py-1.5 rounded-md text-sm font-bold ${filterType === "ALL" ? "bg-[#004aad] text-white" : "text-slate-500 hover:bg-slate-50"}`}>Todos</button>
+              <button onClick={() => setFilterType("INCOME")} className={`px-3 py-1.5 rounded-md text-sm font-bold ${filterType === "INCOME" ? "bg-green-600 text-white" : "text-slate-500 hover:bg-slate-50"}`}>Receitas</button>
+              <button onClick={() => setFilterType("EXPENSE")} className={`px-3 py-1.5 rounded-md text-sm font-bold ${filterType === "EXPENSE" ? "bg-red-600 text-white" : "text-slate-500 hover:bg-slate-50"}`}>Despesas</button>
+            </div>
+
+            <div className="flex bg-white rounded-lg border border-slate-200 p-1">
+              <button onClick={() => setFilterStatus("ALL")} className={`px-3 py-1.5 rounded-md text-sm font-bold ${filterStatus === "ALL" ? "bg-slate-700 text-white" : "text-slate-500 hover:bg-slate-50"}`}>Status: Todos</button>
+              <button onClick={() => setFilterStatus("PAID")} className={`px-3 py-1.5 rounded-md text-sm font-bold ${filterStatus === "PAID" ? "bg-green-600 text-white" : "text-slate-500 hover:bg-slate-50"}`}>Pagos</button>
+              <button onClick={() => setFilterStatus("PENDING")} className={`px-3 py-1.5 rounded-md text-sm font-bold ${filterStatus === "PENDING" ? "bg-amber-500 text-white" : "text-slate-500 hover:bg-slate-50"}`}>Pendentes</button>
+            </div>
+
+            <select 
+              value={filterMonth} 
+              onChange={(e) => setFilterMonth(e.target.value)}
+              className="px-4 py-2 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#38b6ff] text-slate-700 font-body text-sm font-bold bg-white"
+            >
+              <option value="ALL">🗓️ Todos os Meses</option>
+              {availableMonths.map(m => (
+                <option key={m} value={m}>{formatMonthBR(m)}</option>
+              ))}
+            </select>
           </div>
-          <input type="text" placeholder="Buscar descrição ou categoria..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full md:w-64 px-4 py-2 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#38b6ff] text-slate-700 font-body text-sm" />
+
+          <input type="text" placeholder="Buscar descrição ou categoria..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full lg:w-64 px-4 py-2 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#38b6ff] text-slate-700 font-body text-sm" />
         </div>
 
         <div className="grid grid-cols-6 p-4 border-b border-slate-100 font-body font-bold text-slate-500 text-sm uppercase tracking-wider bg-white">
@@ -242,7 +285,7 @@ export default function FinanceiroPage() {
         </div>
         
         {filteredTransactions.length === 0 ? (
-          <div className="p-12 text-center"><p className="font-body text-slate-500 font-medium">Nenhuma transação encontrada.</p></div>
+          <div className="p-12 text-center"><p className="font-body text-slate-500 font-medium">Nenhuma transação encontrada para estes filtros.</p></div>
         ) : (
           <div className="divide-y divide-slate-100">
             {filteredTransactions.map((t) => (
@@ -275,10 +318,11 @@ export default function FinanceiroPage() {
         )}
       </div>
 
+      {/* MODAL DE LANÇAMENTO MANTIDO INTACTO ABAIXO */}
       {isModalOpen && (
-        <div className="fixed inset-0 bg-slate-900/60 flex items-center justify-center z-50 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden">
-            <div className="bg-[#004aad] p-5 text-white flex justify-between items-center">
+        <div className="fixed inset-0 bg-slate-900/60 flex items-center justify-center z-50 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden max-h-[95vh] overflow-y-auto">
+            <div className="bg-[#004aad] p-5 text-white flex justify-between items-center sticky top-0">
               <h2 className="font-heading text-xl uppercase">{isEditMode ? "Editar Lançamento" : "Lançamento de Caixa"}</h2>
               <button onClick={() => setIsModalOpen(false)} className="text-white/70 hover:text-white text-xl">&times;</button>
             </div>
