@@ -24,6 +24,14 @@ interface Cohort {
 }
 
 export default function FinanceiroPage() {
+  // Pega o mês atual no formato AAAA-MM (ex: 2026-09) para usar como padrão
+  const getLocalCurrentMonth = () => {
+    const d = new Date();
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    return `${yyyy}-${mm}`;
+  };
+
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [turmas, setTurmas] = useState<Cohort[]>([]);
   
@@ -34,10 +42,10 @@ export default function FinanceiroPage() {
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   
-  // Novos Filtros Adicionados
   const [filterType, setFilterType] = useState("ALL");
   const [filterStatus, setFilterStatus] = useState("ALL");
-  const [filterMonth, setFilterMonth] = useState("ALL");
+  // O filtro agora nasce travado no mês atual, e não mais em "ALL"
+  const [filterMonth, setFilterMonth] = useState(getLocalCurrentMonth());
 
   const [type, setType] = useState("EXPENSE");
   const [category, setCategory] = useState("Pagamento de Professor");
@@ -163,11 +171,14 @@ export default function FinanceiroPage() {
     } catch (e) { showToast("Erro na comunicação", "error"); }
   };
 
-  // Extrai os meses disponíveis para o filtro dinâmico (formato AAAA-MM)
-  const availableMonths = Array.from(new Set(transactions.map(t => t.due_date?.substring(0, 7)).filter(Boolean))).sort().reverse();
+  // Garante que o mês atual sempre apareça no seletor, mesmo se não houver lançamentos nele ainda
+  const availableMonths = Array.from(new Set([
+    getLocalCurrentMonth(), 
+    ...transactions.map(t => t.due_date?.substring(0, 7)).filter(Boolean)
+  ])).sort().reverse();
+  
   const formatMonthBR = (yyyyMm: string) => { const [y, m] = yyyyMm.split("-"); return `${m}/${y}`; };
 
-  // Filtra as transações para calcular os CARDS com base no mês selecionado
   const monthFilteredTransactions = filterMonth === "ALL" 
     ? transactions 
     : transactions.filter(t => t.due_date?.startsWith(filterMonth));
@@ -176,7 +187,6 @@ export default function FinanceiroPage() {
   const despesasPagas = monthFilteredTransactions.filter(t => !isIncome(t.type) && isPaid(t.status)).reduce((acc, curr) => acc + curr.amount_net, 0);
   const saldoCaixa = receitasPagas - despesasPagas;
 
-  // Filtra a LISTA de transações com todos os filtros aplicados
   const filteredTransactions = transactions.filter(t => {
     const matchSearch = t.description.toLowerCase().includes(searchTerm.toLowerCase()) || t.category.toLowerCase().includes(searchTerm.toLowerCase());
     const matchType = filterType === "ALL" || (filterType === "INCOME" ? isIncome(t.type) : !isIncome(t.type));
@@ -237,7 +247,7 @@ export default function FinanceiroPage() {
             <svg className="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" /></svg>
           </div>
           <div className="z-10">
-            <p className="font-body text-sm text-[#38b6ff] font-semibold uppercase tracking-wider mb-1">Saldo em Caixa</p>
+            <p className="font-body text-sm text-[#38b6ff] font-semibold uppercase tracking-wider mb-1">Saldo do Mês</p>
             <h3 className="font-heading text-3xl text-white">R$ {saldoCaixa.toLocaleString("pt-BR", {minimumFractionDigits: 2})}</h3>
           </div>
         </div>
@@ -245,7 +255,6 @@ export default function FinanceiroPage() {
 
       <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
         
-        {/* BARRA DE FILTROS APRIMORADA */}
         <div className="p-4 border-b border-slate-100 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 bg-[#f8fafc]">
           <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto">
             
@@ -318,7 +327,6 @@ export default function FinanceiroPage() {
         )}
       </div>
 
-      {/* MODAL DE LANÇAMENTO MANTIDO INTACTO ABAIXO */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-slate-900/60 flex items-center justify-center z-50 backdrop-blur-sm p-4">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden max-h-[95vh] overflow-y-auto">
