@@ -20,6 +20,9 @@ export default function TurmasPage() {
   const [turmas, setTurmas] = useState<Cohort[]>([]);
   const [cursos, setCursos] = useState<CourseOption[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [selectedTurmaId, setSelectedTurmaId] = useState<number | null>(null);
+  
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
 
@@ -60,11 +63,24 @@ export default function TurmasPage() {
     const selectedId = e.target.value;
     setCourseId(selectedId);
     const course = cursos.find((c) => c.id === Number(selectedId));
-    if (course) setHours(String(course.workload_hours));
+    if (course && !isEditMode) setHours(String(course.workload_hours));
   };
 
   const handleOpenCreateModal = () => {
+    setIsEditMode(false);
+    setSelectedTurmaId(null);
     setInternalName(""); setCode(""); setPrice(""); setHours(""); setCourseId(""); 
+    setIsModalOpen(true);
+  };
+
+  const handleOpenEditModal = (t: Cohort) => {
+    setIsEditMode(true);
+    setSelectedTurmaId(t.id);
+    setInternalName(t.internal_name);
+    setCode(t.code);
+    setCourseId(String(t.course_id));
+    setHours(String(t.hours));
+    setPrice(Number(t.price).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
     setIsModalOpen(true);
   };
 
@@ -73,18 +89,37 @@ export default function TurmasPage() {
     setLoading(true);
     const numericPrice = price ? Number(price.replace(/\./g, "").replace(",", ".")) : 0.0;
 
+    const payload = {
+      internal_name: internalName,
+      code,
+      course_id: Number(courseId),
+      hours: Number(hours),
+      price: numericPrice,
+      status: "planejada"
+    };
+
     try {
-      const res = await fetch(`${API_BASE_URL}/turmas/`, {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          internal_name: internalName, code, course_id: Number(courseId),
-          hours: Number(hours), price: numericPrice, status: "planejada"
-        })
+      const url = isEditMode ? `${API_BASE_URL}/turmas/${selectedTurmaId}` : `${API_BASE_URL}/turmas/`;
+      const method = isEditMode ? "PUT" : "POST";
+
+      const res = await fetch(url, {
+        method: method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
       });
+
       if (res.ok) {
-        setIsModalOpen(false); fetchData(); showToast("Turma criada!");
-      } else { showToast("Erro ao criar turma", "error"); }
-    } catch (error) { showToast("Erro de conexão", "error"); } finally { setLoading(false); }
+        setIsModalOpen(false);
+        fetchData();
+        showToast(isEditMode ? "Turma atualizada com sucesso!" : "Turma criada com sucesso!");
+      } else { 
+        showToast("Erro ao salvar turma", "error"); 
+      }
+    } catch (error) { 
+      showToast("Erro de conexão", "error"); 
+    } finally { 
+      setLoading(false); 
+    }
   };
 
   const getCourseName = (id: number) => cursos.find(c => c.id === id)?.title || "Desconhecido";
@@ -104,7 +139,7 @@ export default function TurmasPage() {
       <div className="mb-8 flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
         <div>
           <h1 className="font-heading text-4xl text-[#004aad] uppercase">Gestão de Turmas</h1>
-          <p className="font-body text-slate-500 mt-1">Crie edições dos cursos para receber matrículas.</p>
+          <p className="font-body text-slate-500 mt-1">Crie e edite edições dos cursos para receber matrículas.</p>
         </div>
         <div className="flex items-center gap-4">
           <input type="text" placeholder="Buscar turma ou código..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-64 px-4 py-3 rounded-lg border focus:ring-2 focus:ring-[#38b6ff] shadow-sm" />
@@ -131,10 +166,13 @@ export default function TurmasPage() {
                   <span className="block text-xs text-slate-400">Código: {turma.code}</span>
                 </div>
                 <div className="text-sm">{getCourseName(turma.course_id)}</div>
-                <div className="text-sm"><span className="font-semibold text-[#004aad]">R$ {turma.price.toFixed(2)}</span> / {turma.hours}h</div>
-                <div className="text-right">
+                <div className="text-sm"><span className="font-semibold text-[#004aad]">R$ {Number(turma.price).toFixed(2)}</span> / {turma.hours}h</div>
+                <div className="text-right flex items-center justify-end gap-3">
+                  <button onClick={() => handleOpenEditModal(turma)} className="text-slate-500 hover:text-[#004aad] font-semibold text-sm">
+                    Editar
+                  </button>
                   <Link href="/dashboard/cronogramas" className="text-amber-600 hover:text-amber-800 font-bold text-sm bg-amber-50 hover:bg-amber-100 px-3 py-1.5 rounded-lg transition-colors">
-                    Montar Cronograma
+                    Cronograma
                   </Link>
                 </div>
               </div>
@@ -147,7 +185,7 @@ export default function TurmasPage() {
         <div className="fixed inset-0 bg-slate-900/60 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden">
             <div className="bg-[#004aad] p-5 text-white flex justify-between items-center">
-              <h2 className="font-heading text-xl uppercase">Cadastrar Turma</h2>
+              <h2 className="font-heading text-xl uppercase">{isEditMode ? "Editar Turma" : "Cadastrar Turma"}</h2>
               <button onClick={() => setIsModalOpen(false)} className="text-white/70 hover:text-white text-xl">&times;</button>
             </div>
             <form onSubmit={handleSaveTurma} className="p-6 space-y-4 font-body">
@@ -168,7 +206,7 @@ export default function TurmasPage() {
               </div>
               <div className="pt-4 flex gap-3">
                 <button type="button" onClick={() => setIsModalOpen(false)} className="flex-1 bg-slate-100 font-bold py-3 rounded-lg">CANCELAR</button>
-                <button type="submit" disabled={loading} className="flex-1 bg-[#d4ed31] text-[#004aad] font-bold py-3 rounded-lg disabled:opacity-50">{loading ? "SALVANDO..." : "SALVAR TURMA"}</button>
+                <button type="submit" disabled={loading} className="flex-1 bg-[#d4ed31] text-[#004aad] font-bold py-3 rounded-lg disabled:opacity-50">{loading ? "SALVANDO..." : (isEditMode ? "SALVAR ALTERAÇÕES" : "SALVAR TURMA")}</button>
               </div>
             </form>
           </div>
