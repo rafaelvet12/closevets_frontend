@@ -27,8 +27,11 @@ export default function DashboardPage() {
   });
   const [recentEnrollments, setRecentEnrollments] = useState<RecentEnrollment[]>([]);
   const [loading, setLoading] = useState(true);
+  const [userRole, setUserRole] = useState<string | null>(null);
 
   useEffect(() => {
+    setUserRole(localStorage.getItem("closevets_role") || "recepcao");
+
     const fetchDashboardData = async () => {
       try {
         const [resAlunos, resTurmas, resMatriculas] = await Promise.all([
@@ -50,7 +53,6 @@ export default function DashboardPage() {
           receitaPrevista: receita,
         });
 
-        // Pega as 5 matrículas mais recentes para a tabela de resumo
         setRecentEnrollments(matriculas.slice(-5).reverse());
       } catch (error) {
         console.error("Erro ao carregar dados do dashboard:", error);
@@ -82,7 +84,6 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* CARDS DE INDICADORES (KPIs) */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
         <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex items-center gap-5 hover:shadow-md transition-shadow cursor-default">
           <div className="w-14 h-14 rounded-full bg-[#38b6ff]/10 flex items-center justify-center text-[#38b6ff]">
@@ -114,19 +115,20 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        <div className="bg-[#004aad] p-6 rounded-2xl shadow-md flex items-center gap-5 cursor-default relative overflow-hidden">
-          <div className="absolute -right-4 -top-4 w-24 h-24 bg-white/10 rounded-full blur-2xl"></div>
-          <div className="w-14 h-14 rounded-full bg-white/20 flex items-center justify-center text-[#d4ed31] z-10">
-            <svg className="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+        {userRole === "coordenacao" && (
+          <div className="bg-[#004aad] p-6 rounded-2xl shadow-md flex items-center gap-5 cursor-default relative overflow-hidden">
+            <div className="absolute -right-4 -top-4 w-24 h-24 bg-white/10 rounded-full blur-2xl"></div>
+            <div className="w-14 h-14 rounded-full bg-white/20 flex items-center justify-center text-[#d4ed31] z-10">
+              <svg className="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+            </div>
+            <div className="z-10">
+              <p className="font-body text-sm text-[#38b6ff] font-semibold uppercase tracking-wider mb-1">Receita Prevista</p>
+              <h3 className="font-heading text-3xl text-white">R$ {stats.receitaPrevista.toFixed(2)}</h3>
+            </div>
           </div>
-          <div className="z-10">
-            <p className="font-body text-sm text-[#38b6ff] font-semibold uppercase tracking-wider mb-1">Receita Prevista</p>
-            <h3 className="font-heading text-3xl text-white">R$ {stats.receitaPrevista.toFixed(2)}</h3>
-          </div>
-        </div>
+        )}
       </div>
 
-      {/* SESSÃO DE ÚLTIMAS MATRÍCULAS */}
       <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
         <div className="bg-[#f8fafc] p-5 border-b border-slate-100 flex justify-between items-center">
           <h2 className="font-heading text-xl text-[#004aad]">Últimas Matrículas</h2>

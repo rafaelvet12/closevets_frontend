@@ -8,18 +8,22 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const router = useRouter();
   const pathname = usePathname();
   const [isLoading, setIsLoading] = useState(true);
+  const [userRole, setUserRole] = useState<string | null>(null);
 
   useEffect(() => {
     const token = localStorage.getItem("closevets_token");
     if (!token) {
       router.push("/");
     } else {
+      const role = localStorage.getItem("closevets_role") || "recepcao";
+      setUserRole(role);
       setIsLoading(false);
     }
   }, [router]);
 
   const handleLogout = () => {
     localStorage.removeItem("closevets_token");
+    localStorage.removeItem("closevets_role");
     router.push("/");
   };
 
@@ -42,10 +46,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /></svg>
             Visão Geral
           </Link>
-          <Link href="/dashboard/dre" className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${isActive('/dashboard/dre') ? 'bg-white/10 text-[#d4ed31]' : 'hover:bg-white/5'}`}>
-            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
-            Relatórios e DRE
-          </Link>
+
+          {userRole === "coordenacao" && (
+            <Link href="/dashboard/dre" className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${isActive('/dashboard/dre') ? 'bg-white/10 text-[#d4ed31]' : 'hover:bg-white/5'}`}>
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+              Relatórios e DRE
+            </Link>
+          )}
           
           <div className="pt-4 pb-2">
             <p className="text-xs text-[#38b6ff] uppercase tracking-widest pl-4">Acadêmico</p>
@@ -80,10 +87,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
             Matrículas
           </Link>
-          <Link href="/dashboard/financeiro" className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${isActive('/dashboard/financeiro') ? 'bg-white/10 text-[#d4ed31]' : 'hover:bg-white/5'}`}>
-            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-            Caixa Financeiro
-          </Link>
+
+          {userRole === "coordenacao" && (
+            <Link href="/dashboard/financeiro" className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${isActive('/dashboard/financeiro') ? 'bg-white/10 text-[#d4ed31]' : 'hover:bg-white/5'}`}>
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+              Caixa Financeiro
+            </Link>
+          )}
+
           <Link href="/dashboard/certificados" className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${isActive('/dashboard/certificados') ? 'bg-white/10 text-[#d4ed31]' : 'hover:bg-white/5'}`}>
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" /></svg>
             Emitir Certificados
@@ -101,8 +112,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       <main className="flex-1 p-10 overflow-y-auto">
         <header className="mb-10 flex justify-end">
           <div className="bg-white px-5 py-2 rounded-full shadow-sm border border-slate-100 flex items-center gap-3">
-             <div className="w-8 h-8 rounded-full bg-[#38b6ff] flex items-center justify-center text-white font-bold font-body">C</div>
-             <span className="font-body text-sm font-semibold text-slate-700">Coordenação</span>
+             <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white font-bold font-body ${userRole === 'coordenacao' ? 'bg-[#38b6ff]' : 'bg-slate-400'}`}>
+                {userRole === 'coordenacao' ? 'C' : 'R'}
+             </div>
+             <span className="font-body text-sm font-semibold text-slate-700">
+                {userRole === 'coordenacao' ? 'Coordenação' : 'Recepção'}
+             </span>
           </div>
         </header>
         {children}
