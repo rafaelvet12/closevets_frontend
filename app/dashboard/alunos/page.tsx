@@ -1,37 +1,26 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { API_BASE_URL } from "@/app/config";
-
-interface Student {
-  id: number;
-  name: string;
-  email: string;
-  cpf: string;
-  rg?: string;
-  phone?: string;
-  profession?: string;
-  crmv?: string;
-  notes?: string;
-}
-
-interface Enrollment {
-  id: number;
-  course_name: string;
-  enrollment_date: string;
-  status: string;
-}
+import ConfirmDialog from "@/app/components/confirm-dialog";
+import EmptyState from "@/app/components/empty-state";
+import PageHeader from "@/app/components/page-header";
+import Toast from "@/app/components/toast";
+import { useToast } from "@/app/hooks/useToast";
+import { errorMessage } from "@/app/lib/api";
+import { formatCpf, formatCrmv, formatPhone } from "@/app/lib/format";
+import { deactivateStudent, listStudentEnrollments, listStudents, saveStudent } from "@/app/services/closevets";
+import type { Student, StudentEnrollment } from "@/app/types/domain";
 
 export default function AlunosPage() {
   const [alunos, setAlunos] = useState<Student[]>([]);
-  const [enrollments, setEnrollments] = useState<Enrollment[]>([]);
+  const [enrollments, setEnrollments] = useState<StudentEnrollment[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
-  const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
+  const { toast, showToast, closeToast } = useToast();
   const [confirmModal, setConfirmModal] = useState<{ show: boolean; onConfirm: () => void; title: string } | null>(null);
 
   const [name, setName] = useState("");
@@ -43,29 +32,12 @@ export default function AlunosPage() {
   const [crmv, setCrmv] = useState("");
   const [origin, setOrigin] = useState("Instagram");
 
-  const showToast = (message: string, type: "success" | "error" = "success") => {
-    setToast({ message, type });
-    setTimeout(() => setToast(null), 4000);
-  };
-
-  const formatCPF = (value: string) => value.replace(/\D/g, "").replace(/(\d{3})(\d)/, "$1.$2").replace(/(\d{3})(\d)/, "$1.$2").replace(/(\d{3})(\d{1,2})/, "$1-$2").replace(/(-\d{2})\d+?$/, "$1");
-  const formatPhone = (value: string) => value.replace(/\D/g, "").replace(/(\d{2})(\d)/, "($1) $2").replace(/(\d{5})(\d)/, "$1-$2").replace(/(-\d{4})\d+?$/, "$1");
-  
-  const formatCRMV = (value: string) => {
-    const cleaned = value.toUpperCase().replace(/[^0-9A-Z]/g, "");
-    const match = cleaned.match(/^(\d{0,2})(\d{0,3})([A-Z]{0,2})/);
-    if (!match) return cleaned;
-    let result = match[1];
-    if (match[2]) result += "." + match[2];
-    if (match[3]) result += "-" + match[3];
-    return result;
-  };
-
   const fetchAlunos = async () => {
     try {
-      const res = await fetch(`${API_BASE_URL}/alunos/`);
-      if (res.ok) setAlunos(await res.json());
-    } catch (error) { console.error(error); }
+      setAlunos(await listStudents());
+    } catch (error) {
+      showToast(errorMessage(error, "Erro ao carregar alunos."), "error");
+    }
   };
 
   useEffect(() => { fetchAlunos(); }, []);
@@ -74,9 +46,10 @@ export default function AlunosPage() {
     setSelectedStudent(student);
     setIsDetailsOpen(true);
     try {
-      const res = await fetch(`${API_BASE_URL}/matriculas/aluno/${student.id}`);
-      if (res.ok) setEnrollments(await res.json());
-    } catch (e) { console.error(e); }
+      setEnrollments(await listStudentEnrollments(student.id));
+    } catch (error) {
+      showToast(errorMessage(error, "Erro ao carregar o histórico."), "error");
+    }
   };
 
   const handleOpenCreateModal = () => { 
@@ -87,8 +60,8 @@ export default function AlunosPage() {
   
   const handleOpenEditModal = (student: Student) => { 
     setIsEditMode(true); setSelectedStudent(student); 
-    setName(student.name); setEmail(student.email); setCpf(formatCPF(student.cpf)); setRg(student.rg || ""); setPhone(student.phone || ""); 
-    setProfession(student.profession || "Médico Veterinário"); setCrmv(formatCRMV(student.crmv || ""));
+    setName(student.name); setEmail(student.email); setCpf(formatCpf(student.cpf)); setRg(student.rg || ""); setPhone(student.phone || ""); 
+    setProfession(student.profession || "Médico Veterinário"); setCrmv(formatCrmv(student.crmv || ""));
     setOrigin(student.notes?.replace("Origem: ", "") || "Instagram");
     setIsDetailsOpen(false); setIsModalOpen(true); 
   };
@@ -98,19 +71,15 @@ export default function AlunosPage() {
     setLoading(true);
     const cleanCpf = cpf.replace(/\D/g, "");
     try {
-      const url = isEditMode ? `${API_BASE_URL}/alunos/${selectedStudent?.id}` : `${API_BASE_URL}/alunos/`;
-      const method = isEditMode ? "PUT" : "POST";
-      const res = await fetch(url, { 
-        method: method, headers: { "Content-Type": "application/json" }, 
-        body: JSON.stringify({ name, email, cpf: cleanCpf, rg, phone, profession, crmv, notes: `Origem: ${origin}` }) 
+      await saveStudent(isEditMode ? selectedStudent?.id : undefined, {
+        name, email, cpf: cleanCpf, rg, phone, profession, crmv, notes: `Origem: ${origin}`,
       });
-      
-      if (res.ok) {
-        setIsModalOpen(false); fetchAlunos(); showToast(isEditMode ? "Aluno atualizado com sucesso!" : "Aluno cadastrado com sucesso!");
-      } else {
-        const data = await res.json(); showToast(data.detail || "Erro ao salvar", "error");
-      }
-    } catch (error) { showToast("Erro de conexão.", "error"); } finally { setLoading(false); }
+      setIsModalOpen(false);
+      fetchAlunos();
+      showToast(isEditMode ? "Aluno atualizado com sucesso!" : "Aluno cadastrado com sucesso!");
+    } catch (error) {
+      showToast(errorMessage(error, "Erro de conexão."), "error");
+    } finally { setLoading(false); }
   };
 
   const handleDeactivate = (student: Student) => {
@@ -119,16 +88,14 @@ export default function AlunosPage() {
       title: `Deseja desativar o aluno ${student.name}?`,
       onConfirm: async () => {
         try {
-          const res = await fetch(`${API_BASE_URL}/alunos/${student.id}`, { method: "DELETE" });
-          if (res.ok) { 
-            setIsDetailsOpen(false); 
-            setConfirmModal(null); 
-            fetchAlunos(); 
-            showToast("Aluno desativado com sucesso."); 
-          } else {
-            showToast("Erro ao desativar aluno.", "error");
-          }
-        } catch { showToast("Erro de conexão.", "error"); }
+          await deactivateStudent(student.id);
+          setIsDetailsOpen(false);
+          setConfirmModal(null);
+          fetchAlunos();
+          showToast("Aluno desativado com sucesso.");
+        } catch (error) {
+          showToast(errorMessage(error, "Erro de conexão."), "error");
+        }
       }
     });
   };
@@ -137,43 +104,25 @@ export default function AlunosPage() {
 
   return (
     <div className="animate-fade-in">
-      {toast && (
-        <div className="fixed bottom-6 right-6 z-[80]">
-          <div className={`px-6 py-4 rounded-xl shadow-2xl flex items-center gap-4 text-white font-body text-sm font-semibold ${toast.type === "success" ? "bg-[#004aad] border border-[#38b6ff]" : "bg-red-600"}`}>
-            <span>{toast.message}</span>
-            <button onClick={() => setToast(null)} className="text-white/80 hover:text-white font-bold">&times;</button>
-          </div>
-        </div>
-      )}
+      {toast && <Toast message={toast.message} type={toast.type} onClose={closeToast} />}
 
-      {confirmModal?.show && (
-        <div className="fixed inset-0 bg-slate-900/60 flex items-center justify-center z-[70] backdrop-blur-sm">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6 text-center space-y-4">
-            <div className="w-12 h-12 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto">
-              <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
-            </div>
-            <h3 className="font-heading text-xl text-[#004aad]">{confirmModal.title}</h3>
-            <p className="font-body text-sm text-slate-500">Essa ação alterará o status do aluno no sistema.</p>
-            <div className="flex gap-3 pt-2">
-              <button onClick={() => setConfirmModal(null)} className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold py-2.5 rounded-lg text-sm">Cancelar</button>
-              <button onClick={confirmModal.onConfirm} className="flex-1 bg-red-600 hover:bg-red-700 text-white font-bold py-2.5 rounded-lg text-sm">Confirmar</button>
-            </div>
-          </div>
-        </div>
-      )}
+      <ConfirmDialog
+        open={Boolean(confirmModal?.show)}
+        title={confirmModal?.title || ""}
+        description="Essa ação alterará o status do aluno no sistema."
+        onCancel={() => setConfirmModal(null)}
+        onConfirm={() => confirmModal?.onConfirm()}
+      />
 
-      <div className="mb-8 flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
-        <div>
-          <h1 className="font-heading text-4xl text-[#004aad] uppercase">Diretório de Alunos</h1>
-          <p className="font-body text-slate-500 mt-1">Gerencie os dados cadastrais e o perfil dos estudantes (CRM).</p>
-        </div>
-        <div className="flex items-center gap-4 w-full md:w-auto">
-          <input type="text" placeholder="Buscar aluno, e-mail ou CPF..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full md:w-64 px-4 py-3 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#38b6ff] text-slate-700 font-body text-sm shadow-sm" />
-          <button onClick={handleOpenCreateModal} className="bg-[#004aad] hover:bg-[#003882] text-[#d4ed31] font-heading px-6 py-3 rounded-lg shadow-sm whitespace-nowrap">
-            NOVO ALUNO
-          </button>
-        </div>
-      </div>
+      <PageHeader
+        title="Diretório de Alunos"
+        description="Gerencie os dados cadastrais e o perfil dos estudantes (CRM)."
+        search={searchTerm}
+        searchPlaceholder="Buscar aluno, e-mail ou CPF..."
+        onSearch={setSearchTerm}
+        actionLabel="NOVO ALUNO"
+        onAction={handleOpenCreateModal}
+      />
 
       <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
         <div className="bg-[#f8fafc] grid grid-cols-6 p-4 border-b border-slate-100 font-body font-bold text-slate-500 text-sm uppercase">
@@ -184,7 +133,7 @@ export default function AlunosPage() {
         </div>
         
         {filteredAlunos.length === 0 ? (
-          <div className="p-12 text-center"><p className="font-body text-slate-500 font-medium">Nenhum aluno encontrado.</p></div>
+          <EmptyState message="Nenhum aluno encontrado." />
         ) : (
           <div className="divide-y divide-slate-100">
             {filteredAlunos.map((aluno) => (
@@ -192,7 +141,7 @@ export default function AlunosPage() {
                 <div className="col-span-2 font-bold text-[#004aad]">{aluno.name}
                   <span className="block text-xs text-slate-400 font-medium mt-0.5">{aluno.profession}</span>
                 </div>
-                <div className="text-slate-600 text-sm">{formatCPF(aluno.cpf)}</div>
+                <div className="text-slate-600 text-sm">{formatCpf(aluno.cpf)}</div>
                 <div className="col-span-2 text-sm">
                   <div className="font-semibold text-slate-700">{aluno.phone || "S/ Número"}</div>
                   <div className="text-xs text-slate-500">{aluno.email}</div>
@@ -217,7 +166,7 @@ export default function AlunosPage() {
             <form onSubmit={handleSaveStudent} className="p-6 space-y-4 font-body">
               <div className="grid grid-cols-2 gap-4">
                 <div className="col-span-2"><label className="block text-sm font-semibold text-[#004aad] mb-1">Nome Completo</label><input required value={name} onChange={e => setName(e.target.value)} className="w-full px-4 py-3 rounded-lg border" placeholder="João da Silva" /></div>
-                <div><label className="block text-sm font-semibold text-[#004aad] mb-1">CPF</label><input required value={cpf} onChange={e => setCpf(formatCPF(e.target.value))} className="w-full px-4 py-3 rounded-lg border" placeholder="000.000.000-00" /></div>
+                <div><label className="block text-sm font-semibold text-[#004aad] mb-1">CPF</label><input required value={cpf} onChange={e => setCpf(formatCpf(e.target.value))} className="w-full px-4 py-3 rounded-lg border" placeholder="000.000.000-00" /></div>
                 <div><label className="block text-sm font-semibold text-[#004aad] mb-1">RG</label><input value={rg} onChange={e => setRg(e.target.value)} className="w-full px-4 py-3 rounded-lg border" placeholder="00.000.000-0" /></div>
               </div>
               <div className="grid grid-cols-2 gap-4">
@@ -231,7 +180,7 @@ export default function AlunosPage() {
                   <input 
                     maxLength={10} 
                     value={crmv} 
-                    onChange={e => setCrmv(formatCRMV(e.target.value))} 
+                    onChange={e => setCrmv(formatCrmv(e.target.value))} 
                     className="w-full px-4 py-3 rounded-lg border uppercase" 
                     placeholder="Ex: 12.345-SP" 
                   />
@@ -257,7 +206,7 @@ export default function AlunosPage() {
             <div className="p-6 space-y-6 font-body">
               <div className="grid grid-cols-2 gap-4 bg-slate-50 p-4 rounded-xl border border-slate-100">
                 <div className="col-span-2"><span className="block text-xs font-semibold text-slate-400 uppercase">E-mail</span><span className="text-slate-700 font-medium break-all">{selectedStudent.email}</span></div>
-                <div><span className="block text-xs font-semibold text-slate-400 uppercase">CPF</span><span className="text-slate-700 font-medium">{formatCPF(selectedStudent.cpf)}</span></div>
+                <div><span className="block text-xs font-semibold text-slate-400 uppercase">CPF</span><span className="text-slate-700 font-medium">{formatCpf(selectedStudent.cpf)}</span></div>
                 <div><span className="block text-xs font-semibold text-slate-400 uppercase">RG</span><span className="text-slate-700 font-medium">{selectedStudent.rg || "Não informado"}</span></div>
                 <div><span className="block text-xs font-semibold text-slate-400 uppercase">Telefone</span><span className="text-slate-700 font-medium">{selectedStudent.phone || "Não informado"}</span></div>
                 <div><span className="block text-xs font-semibold text-slate-400 uppercase">{selectedStudent.profession || "Profissão"}</span><span className="text-[#004aad] font-bold block">{selectedStudent.crmv || "S/ Registro"}</span></div>

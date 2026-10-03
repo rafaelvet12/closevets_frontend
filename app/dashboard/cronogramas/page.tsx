@@ -1,28 +1,15 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { API_BASE_URL } from "@/app/config";
-
-interface Cohort { id: number; internal_name: string; hours: number; code: string; }
-interface InstructorOption { id: number; name: string; hourly_rate?: number; }
-interface Schedule { 
-  id: number; 
-  date: string; 
-  start_time: string; 
-  end_time: string; 
-  topic: string; 
-  instructor_id: number; 
-  instructor_name: string;
-  executed_instructor_id?: number;
-  executed_instructor_name?: string;
-  hours: number; 
-  real_duration_hours?: number;
-  status: string; 
-}
+import Toast from "@/app/components/toast";
+import { useToast } from "@/app/hooks/useToast";
+import { errorMessage } from "@/app/lib/api";
+import { completeSchedule, createSchedule, deleteSchedule, listCohorts, listInstructors, listSchedules } from "@/app/services/closevets";
+import type { Cohort, Instructor, Schedule } from "@/app/types/domain";
 
 export default function CronogramasPage() {
   const [turmas, setTurmas] = useState<Cohort[]>([]);
-  const [instructors, setInstructors] = useState<InstructorOption[]>([]);
+  const [instructors, setInstructors] = useState<Instructor[]>([]);
   const [schedules, setSchedules] = useState<Schedule[]>([]);
   
   const [selectedCohortId, setSelectedCohortId] = useState("");
@@ -41,20 +28,16 @@ export default function CronogramasPage() {
   const [execInstructor, setExecInstructor] = useState("");
   const [execHours, setExecHours] = useState("");
 
-  const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
-
-  const showToast = (message: string, type: "success" | "error" = "success") => {
-    setToast({ message, type }); setTimeout(() => setToast(null), 4000);
-  };
+  const { toast, showToast, closeToast } = useToast();
 
   const fetchBaseData = async () => {
     try {
-      const [resTurmas, resInstructors] = await Promise.all([
-        fetch(`${API_BASE_URL}/turmas/`), fetch(`${API_BASE_URL}/professores/`)
-      ]);
-      if (resTurmas.ok) setTurmas(await resTurmas.json());
-      if (resInstructors.ok) setInstructors(await resInstructors.json());
-    } catch (error) { console.error("Erro:", error); }
+      const [turmasData, instructorsData] = await Promise.all([listCohorts(), listInstructors()]);
+      setTurmas(turmasData);
+      setInstructors(instructorsData);
+    } catch (error) {
+      showToast(errorMessage(error, "Erro ao carregar cronograma."), "error");
+    }
   };
 
   useEffect(() => { fetchBaseData(); }, []);
@@ -62,9 +45,10 @@ export default function CronogramasPage() {
   const fetchSchedules = async (cohort_id: string) => {
     if (!cohort_id) return;
     try {
-      const res = await fetch(`${API_BASE_URL}/schedules/cohort/${cohort_id}`);
-      if (res.ok) setSchedules(await res.json());
-    } catch (error) { console.error(error); }
+      setSchedules(await listSchedules(cohort_id));
+    } catch (error) {
+      showToast(errorMessage(error, "Erro ao carregar as aulas."), "error");
+    }
   };
 
   useEffect(() => { fetchSchedules(selectedCohortId); }, [selectedCohortId]);
@@ -86,15 +70,12 @@ export default function CronogramasPage() {
         date: schDate, start_time: schStart + ":00", end_time: schEnd + ":00",
         topic: schTopic, hours: totalHours
       };
-      const res = await fetch(`${API_BASE_URL}/schedules/`, {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload)
-      });
-      if (res.ok) {
-        showToast("Aula adicionada com sucesso!");
-        fetchSchedules(selectedCohortId);
-        setSchDate(""); setSchStart(""); setSchEnd(""); setSchTopic(""); setSchInstructor("");
-      }
+      await createSchedule(payload);
+      showToast("Aula adicionada com sucesso!");
+      fetchSchedules(selectedCohortId);
+      setSchDate(""); setSchStart(""); setSchEnd(""); setSchTopic(""); setSchInstructor("");
+    } catch (error) {
+      showToast(errorMessage(error, "Erro ao adicionar a aula."), "error");
     } finally { setLoading(false); }
   };
 
@@ -110,32 +91,26 @@ export default function CronogramasPage() {
     if (!activeSchedule) return;
 
     try {
-      const res = await fetch(`${API_BASE_URL}/schedules/${activeSchedule.id}/complete`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          executed_instructor_id: Number(execInstructor),
-          real_duration_hours: Number(execHours)
-        })
+      await completeSchedule(activeSchedule.id, {
+        executed_instructor_id: Number(execInstructor),
+        real_duration_hours: Number(execHours),
       });
-
-      if (res.ok) {
-        showToast("Aula realizada e custo computado no financeiro!");
-        setCompleteModalOpen(false);
-        fetchSchedules(selectedCohortId);
-      } else {
-        showToast("Erro ao registrar aula.", "error");
-      }
-    } catch {
-      showToast("Erro de conexão.", "error");
+      showToast("Aula realizada e custo computado no financeiro!");
+      setCompleteModalOpen(false);
+      fetchSchedules(selectedCohortId);
+    } catch (error) {
+      showToast(errorMessage(error, "Erro de conexão."), "error");
     }
   };
 
   const handleDeleteSchedule = async (id: number) => {
     try {
-      const res = await fetch(`${API_BASE_URL}/schedules/${id}`, { method: "DELETE" });
-      if (res.ok) { showToast("Aula removida."); fetchSchedules(selectedCohortId); }
-    } catch { showToast("Erro de conexão.", "error"); }
+      await deleteSchedule(id);
+      showToast("Aula removida.");
+      fetchSchedules(selectedCohortId);
+    } catch (error) {
+      showToast(errorMessage(error, "Erro de conexão."), "error");
+    }
   };
 
   const selectedTurmaObj = turmas.find(t => t.id === Number(selectedCohortId));
@@ -143,14 +118,7 @@ export default function CronogramasPage() {
 
   return (
     <div className="animate-fade-in">
-      {toast && (
-        <div className="fixed bottom-6 right-6 z-[80]">
-          <div className={`px-6 py-4 rounded-xl shadow-2xl flex items-center gap-4 text-white font-body text-sm font-semibold ${toast.type === "success" ? "bg-[#004aad] border border-[#38b6ff]" : "bg-red-600"}`}>
-            <span>{toast.message}</span>
-            <button onClick={() => setToast(null)} className="text-white/80 font-bold">&times;</button>
-          </div>
-        </div>
-      )}
+      {toast && <Toast message={toast.message} type={toast.type} onClose={closeToast} />}
 
       {/* MODAL DE CONFIRMAÇÃO DE EXECUÇÃO DA AULA */}
       {completeModalOpen && activeSchedule && (

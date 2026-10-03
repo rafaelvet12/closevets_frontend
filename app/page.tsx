@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { API_BASE_URL } from "./config";
+import { errorMessage } from "@/app/lib/api";
+import { login } from "@/app/services/closevets";
 
 export default function Home() {
   const router = useRouter();
@@ -16,29 +17,14 @@ export default function Home() {
     setLoading(true);
     setError("");
 
-    // O FastAPI (OAuth2) exige que os dados sejam enviados como Formulário (URL Encoded)
-    const formData = new URLSearchParams();
-    formData.append("username", email);
-    formData.append("password", password);
-
     try {
-      const response = await fetch(`${API_BASE_URL}/auth/login`, {
-        method: "POST",
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        body: formData,
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        // Salva a chave de segurança no navegador
-        localStorage.setItem("closevets_token", data.access_token);
-        // Redireciona para o painel de controle
-        router.push("/dashboard");
-      } else {
-        setError("E-mail ou senha incorretos.");
-      }
-    } catch (err) {
-      setError("Erro ao conectar com o servidor.");
+      const data = await login(email, password);
+      localStorage.setItem("closevets_token", data.access_token);
+      localStorage.setItem("closevets_role", data.role ? data.role.toLowerCase() : "recepcao");
+      router.push("/dashboard");
+    } catch (error) {
+      const message = errorMessage(error, "Erro ao conectar com o servidor.");
+      setError(message === "E-mail ou senha incorretos" ? "E-mail ou senha incorretos." : message);
     } finally {
       setLoading(false);
     }

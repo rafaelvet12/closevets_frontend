@@ -2,23 +2,16 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { API_BASE_URL } from "@/app/config";
-
-interface Cohort {
-  id: number;
-  internal_name: string;
-  code: string;
-  price: number;
-  hours: number;
-  course_id: number;
-  status: string;
-}
-
-interface CourseOption { id: number; title: string; workload_hours: number; }
+import Toast from "@/app/components/toast";
+import { useToast } from "@/app/hooks/useToast";
+import { errorMessage } from "@/app/lib/api";
+import { maskCurrency, parseCurrency } from "@/app/lib/format";
+import { listCohorts, listCourses, saveCohort } from "@/app/services/closevets";
+import type { Cohort, Course } from "@/app/types/domain";
 
 export default function TurmasPage() {
   const [turmas, setTurmas] = useState<Cohort[]>([]);
-  const [cursos, setCursos] = useState<CourseOption[]>([]);
+  const [cursos, setCursos] = useState<Course[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
   const [selectedTurmaId, setSelectedTurmaId] = useState<number | null>(null);
@@ -32,31 +25,22 @@ export default function TurmasPage() {
   const [hours, setHours] = useState("");
   const [courseId, setCourseId] = useState("");
 
-  const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
-
-  const showToast = (message: string, type: "success" | "error" = "success") => {
-    setToast({ message, type });
-    setTimeout(() => setToast(null), 4000);
-  };
+  const { toast, showToast, closeToast } = useToast();
 
   const fetchData = async () => {
     try {
-      const [resTurmas, resCursos] = await Promise.all([
-        fetch(`${API_BASE_URL}/turmas/`),
-        fetch(`${API_BASE_URL}/courses/`)
-      ]);
-      if (resTurmas.ok) setTurmas(await resTurmas.json());
-      if (resCursos.ok) setCursos(await resCursos.json());
-    } catch (error) { console.error("Erro:", error); }
+      const [turmasData, cursosData] = await Promise.all([listCohorts(), listCourses()]);
+      setTurmas(turmasData);
+      setCursos(cursosData);
+    } catch (error) {
+      showToast(errorMessage(error, "Erro ao carregar turmas."), "error");
+    }
   };
 
   useEffect(() => { fetchData(); }, []);
 
   const handlePriceChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    let value = e.target.value.replace(/\D/g, "");
-    if (!value) { setPrice(""); return; }
-    const floatValue = Number(value) / 100;
-    setPrice(floatValue.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
+    setPrice(maskCurrency(e.target.value));
   };
 
   const handleCourseChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -87,7 +71,7 @@ export default function TurmasPage() {
   const handleSaveTurma = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    const numericPrice = price ? Number(price.replace(/\./g, "").replace(",", ".")) : 0.0;
+    const numericPrice = parseCurrency(price);
 
     const payload = {
       internal_name: internalName,
@@ -99,24 +83,12 @@ export default function TurmasPage() {
     };
 
     try {
-      const url = isEditMode ? `${API_BASE_URL}/turmas/${selectedTurmaId}` : `${API_BASE_URL}/turmas/`;
-      const method = isEditMode ? "PUT" : "POST";
-
-      const res = await fetch(url, {
-        method: method,
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload)
-      });
-
-      if (res.ok) {
-        setIsModalOpen(false);
-        fetchData();
-        showToast(isEditMode ? "Turma atualizada com sucesso!" : "Turma criada com sucesso!");
-      } else { 
-        showToast("Erro ao salvar turma", "error"); 
-      }
-    } catch (error) { 
-      showToast("Erro de conexão", "error"); 
+      await saveCohort(isEditMode ? selectedTurmaId : null, payload);
+      setIsModalOpen(false);
+      fetchData();
+      showToast(isEditMode ? "Turma atualizada com sucesso!" : "Turma criada com sucesso!");
+    } catch (error) {
+      showToast(errorMessage(error, "Erro ao salvar turma."), "error");
     } finally { 
       setLoading(false); 
     }
@@ -127,14 +99,7 @@ export default function TurmasPage() {
 
   return (
     <div className="animate-fade-in">
-      {toast && (
-        <div className="fixed bottom-6 right-6 z-[80]">
-          <div className={`px-6 py-4 rounded-xl shadow-2xl flex items-center gap-4 text-white font-body text-sm font-semibold ${toast.type === "success" ? "bg-[#004aad] border border-[#38b6ff]" : "bg-red-600"}`}>
-            <span>{toast.message}</span>
-            <button onClick={() => setToast(null)} className="text-white/80 font-bold">&times;</button>
-          </div>
-        </div>
-      )}
+      {toast && <Toast message={toast.message} type={toast.type} onClose={closeToast} />}
 
       <div className="mb-8 flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
         <div>

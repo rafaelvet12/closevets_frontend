@@ -3,20 +3,9 @@
 import { useState, useEffect, use } from "react";
 import Link from "next/link";
 
-interface CertificateValidation {
-  uuid_code: string;
-  status: string;
-  snapshot_data: {
-    aluno_nome: string;
-    aluno_cpf: string;
-    curso_nome: string;
-    turma_codigo: string;
-    carga_horaria: number;
-    data_inicio: string;
-    data_fim: string;
-  };
-  issued_at: string;
-}
+import { maskPublicCpf } from "@/app/lib/format";
+import { validateCertificate } from "@/app/services/closevets";
+import type { CertificateValidation } from "@/app/types/domain";
 
 export default function ValidarCertificadoPage({ params }: { params: Promise<{ codigo: string }> }) {
   const resolvedParams = use(params);
@@ -29,13 +18,8 @@ export default function ValidarCertificadoPage({ params }: { params: Promise<{ c
   useEffect(() => {
     async function checkCertificate() {
       try {
-        const res = await fetch(`https://closevets-backend.onrender.com/certificados/validar/${codigo}`);
-        if (res.ok) {
-          const data = await res.json();
-          setCertData(data);
-        } else {
-          setError(true);
-        }
+        const data = await validateCertificate(codigo);
+        setCertData(data);
       } catch {
         setError(true);
       } finally {
@@ -44,14 +28,6 @@ export default function ValidarCertificadoPage({ params }: { params: Promise<{ c
     }
     checkCertificate();
   }, [codigo]);
-
-  // Função para mascarar o CPF seguindo a regra: ..***-21
-  const maskCPF = (cpf: string) => {
-    if (!cpf || cpf.length < 3) return "..***-00";
-    const clean = cpf.replace(/\D/g, "");
-    const lastTwo = clean.slice(-2);
-    return `..***-${lastTwo}`;
-  };
 
   if (loading) {
     return (
@@ -85,7 +61,8 @@ export default function ValidarCertificadoPage({ params }: { params: Promise<{ c
     );
   }
 
-  const isCancelled = certData.status === "cancelled" || certData.status === "CANCELADO";
+  const status = certData.status.toUpperCase();
+  const isCancelled = status === "CANCELLED" || status === "CANCELADO";
 
   return (
     <main className="min-h-screen bg-[#f8fafc] py-12 px-4 sm:px-6 flex flex-col items-center justify-center font-body">
@@ -107,7 +84,7 @@ export default function ValidarCertificadoPage({ params }: { params: Promise<{ c
           <div>
             <span className="block text-xs font-bold text-slate-400 uppercase tracking-wider">Estudante</span>
             <p className="text-2xl font-heading text-[#004aad] mt-0.5">{certData.snapshot_data.aluno_nome}</p>
-            <p className="text-sm font-mono text-slate-500 mt-0.5">CPF: {maskCPF(certData.snapshot_data.aluno_cpf)}</p>
+            <p className="text-sm font-mono text-slate-500 mt-0.5">CPF: {maskPublicCpf(certData.snapshot_data.aluno_cpf || "")}</p>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-slate-50 p-4 rounded-2xl border border-slate-100">

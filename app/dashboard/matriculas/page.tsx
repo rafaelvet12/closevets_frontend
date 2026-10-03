@@ -1,58 +1,19 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { API_BASE_URL } from "@/app/config";
-
-interface EnrollmentData {
-  id: number;
-  student_name: string;
-  course_name: string;
-  enrollment_date: string;
-  status: string;
-  payment_method: string;
-  final_price: number;
-}
-
-interface OptionData {
-  id: number;
-  name?: string;
-  internal_name?: string;
-  price?: number;
-}
-
-const STATUS_LABELS: Record<string, { label: string; color: string }> = {
-  confirmado: { label: "Ativo", color: "bg-green-100 text-green-700" },
-  cursando: { label: "Cursando", color: "bg-green-100 text-green-700" },
-  concluido: { label: "Concluído", color: "bg-blue-100 text-blue-700" },
-  cancelado: { label: "Cancelado", color: "bg-red-100 text-red-700" },
-  desistente: { label: "Desistente", color: "bg-red-100 text-red-700" },
-  interessado: { label: "Interessado", color: "bg-amber-100 text-amber-700" },
-  pre_inscrito: { label: "Pré-inscrito", color: "bg-amber-100 text-amber-700" },
-  inscrito: { label: "Inscrito", color: "bg-amber-100 text-amber-700" },
-  matriculado: { label: "Matriculado", color: "bg-amber-100 text-amber-700" },
-  pagamento_pendente: { label: "Pagamento pendente", color: "bg-amber-100 text-amber-700" },
-  ATIVO: { label: "Ativo", color: "bg-green-100 text-green-700" },
-  CANCELADO: { label: "Cancelado", color: "bg-red-100 text-red-700" },
-  CONCLUIDO: { label: "Concluído", color: "bg-blue-100 text-blue-700" },
-};
-
-const getStatusDisplay = (status: string) =>
-  STATUS_LABELS[status] || { label: status, color: "bg-slate-100 text-slate-700" };
-
-const EDIT_STATUS_REVERSE_MAP: Record<string, string> = {
-  confirmado: "ATIVO",
-  cursando: "ATIVO",
-  concluido: "CONCLUIDO",
-  cancelado: "CANCELADO",
-  ATIVO: "ATIVO",
-  CANCELADO: "CANCELADO",
-  CONCLUIDO: "CONCLUIDO",
-};
+import ConfirmDialog from "@/app/components/confirm-dialog";
+import Toast from "@/app/components/toast";
+import { useToast } from "@/app/hooks/useToast";
+import { errorMessage } from "@/app/lib/api";
+import { EDIT_STATUS_REVERSE_MAP, getStatusDisplay } from "@/app/lib/enrollment-status";
+import { formatEnrollmentId } from "@/app/lib/format";
+import { createEnrollment, listCohorts, listEnrollments, listStudents, updateEnrollment } from "@/app/services/closevets";
+import type { Enrollment, NamedOption } from "@/app/types/domain";
 
 export default function MatriculasPage() {
-  const [matriculas, setMatriculas] = useState<EnrollmentData[]>([]);
-  const [alunos, setAlunos] = useState<OptionData[]>([]);
-  const [turmas, setTurmas] = useState<OptionData[]>([]);
+  const [matriculas, setMatriculas] = useState<Enrollment[]>([]);
+  const [alunos, setAlunos] = useState<NamedOption[]>([]);
+  const [turmas, setTurmas] = useState<NamedOption[]>([]);
   
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -65,33 +26,24 @@ export default function MatriculasPage() {
   const [selectedCohortId, setSelectedCohortId] = useState("");
   const [installments, setInstallments] = useState("1");
   
-  const [selectedMatricula, setSelectedMatricula] = useState<EnrollmentData | null>(null);
+  const [selectedMatricula, setSelectedMatricula] = useState<Enrollment | null>(null);
   const [editStatus, setEditStatus] = useState("ATIVO");
   const [editPaymentMethod, setEditPaymentMethod] = useState("Pix");
   
-  const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
-
-  const showToast = (message: string, type: "success" | "error" = "success") => {
-    setToast({ message, type });
-    setTimeout(() => setToast(null), 4000);
-  };
-
-  // Formatador visual de ID para MAT-00000
-  const formatMatriculaId = (id: number) => `MAT-${id.toString().padStart(5, "0")}`;
+  const { toast, showToast, closeToast } = useToast();
 
   const fetchData = async () => {
     try {
-      const [resMatriculas, resAlunos, resTurmas] = await Promise.all([
-        fetch(`${API_BASE_URL}/matriculas/`),
-        fetch(`${API_BASE_URL}/alunos/`),
-        fetch(`${API_BASE_URL}/turmas/`)
+      const [matriculasData, alunosData, turmasData] = await Promise.all([
+        listEnrollments(),
+        listStudents(),
+        listCohorts(),
       ]);
-
-      if (resMatriculas.ok) setMatriculas(await resMatriculas.json());
-      if (resAlunos.ok) setAlunos(await resAlunos.json());
-      if (resTurmas.ok) setTurmas(await resTurmas.json());
+      setMatriculas(matriculasData);
+      setAlunos(alunosData);
+      setTurmas(turmasData);
     } catch (error) {
-      console.error("Erro ao buscar dados:", error);
+      showToast(errorMessage(error, "Erro ao buscar dados."), "error");
     }
   };
 
@@ -106,34 +58,25 @@ export default function MatriculasPage() {
 
     setLoading(true);
     try {
-      const res = await fetch(`${API_BASE_URL}/matriculas/`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ 
-          student_id: Number(selectedStudentId), 
-          cohort_id: Number(selectedCohortId),
-          full_price: fullPrice,
-          discount: 0.0,
-          installments: Number(installments)
-        }),
+      await createEnrollment({
+        student_id: Number(selectedStudentId),
+        cohort_id: Number(selectedCohortId),
+        full_price: fullPrice,
+        discount: 0.0,
+        installments: Number(installments),
       });
-      
-      const data = await res.json();
-      
-      if (res.ok) {
-        setIsModalOpen(false); 
-        setSelectedStudentId(""); 
-        setSelectedCohortId(""); 
-        setInstallments("1");
-        fetchData();
-        showToast("Matrícula realizada e cobranças geradas com sucesso!");
-      } else {
-        showToast(data.detail || "Erro ao matricular", "error");
-      }
-    } catch (error) { showToast("Erro de conexão.", "error"); } finally { setLoading(false); }
+      setIsModalOpen(false);
+      setSelectedStudentId("");
+      setSelectedCohortId("");
+      setInstallments("1");
+      fetchData();
+      showToast("Matrícula realizada e cobranças geradas com sucesso!");
+    } catch (error) {
+      showToast(errorMessage(error, "Erro de conexão."), "error");
+    } finally { setLoading(false); }
   };
 
-  const handleOpenEdit = (mat: EnrollmentData) => {
+  const handleOpenEdit = (mat: Enrollment) => {
     setSelectedMatricula(mat);
     setEditStatus(EDIT_STATUS_REVERSE_MAP[mat.status] || "ATIVO");
     setEditPaymentMethod(mat.payment_method || "Pix");
@@ -144,49 +87,34 @@ export default function MatriculasPage() {
     e.preventDefault();
     setLoading(true);
     try {
-      const res = await fetch(`${API_BASE_URL}/matriculas/${selectedMatricula?.id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ 
-          status: editStatus,
-          payment_method: editPaymentMethod 
-        }),
+      if (!selectedMatricula) return;
+      await updateEnrollment(selectedMatricula.id, {
+        status: editStatus,
+        payment_method: editPaymentMethod,
       });
-      
-      if (res.ok) {
-        setIsEditModalOpen(false); 
-        fetchData(); 
-        showToast("Matrícula atualizada com sucesso!");
-      } else {
-        showToast("Erro ao atualizar matrícula", "error");
-      }
-    } catch (error) { showToast("Erro de conexão.", "error"); } finally { setLoading(false); }
+      setIsEditModalOpen(false);
+      fetchData();
+      showToast("Matrícula atualizada com sucesso!");
+    } catch (error) {
+      showToast(errorMessage(error, "Erro de conexão."), "error");
+    } finally { setLoading(false); }
   };
 
-  const handleCancelEnrollment = (mat: EnrollmentData) => {
+  const handleCancelEnrollment = (mat: Enrollment) => {
     setConfirmModal({
       show: true,
       title: `Deseja cancelar a matrícula de ${mat.student_name}?`,
       onConfirm: async () => {
         try {
-          const res = await fetch(`${API_BASE_URL}/matriculas/${mat.id}`, {
-            method: "PUT",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ 
-              status: "CANCELADO",
-              payment_method: mat.payment_method || "Pix"
-            }),
+          await updateEnrollment(mat.id, {
+            status: "CANCELADO",
+            payment_method: mat.payment_method || "Pix",
           });
-
-          if (res.ok) {
-            setConfirmModal(null);
-            fetchData();
-            showToast("Matrícula cancelada com sucesso.");
-          } else {
-            showToast("Erro ao cancelar matrícula.", "error");
-          }
-        } catch {
-          showToast("Erro de conexão.", "error");
+          setConfirmModal(null);
+          fetchData();
+          showToast("Matrícula cancelada com sucesso.");
+        } catch (error) {
+          showToast(errorMessage(error, "Erro de conexão."), "error");
         }
       }
     });
@@ -199,30 +127,16 @@ export default function MatriculasPage() {
 
   return (
     <>
-      {toast && (
-        <div className="fixed bottom-6 right-6 z-[80]">
-          <div className={`px-6 py-4 rounded-xl shadow-2xl flex items-center gap-4 text-white font-body text-sm font-semibold ${toast.type === "success" ? "bg-[#004aad] border border-[#38b6ff]" : "bg-red-600"}`}>
-            <span>{toast.message}</span>
-            <button onClick={() => setToast(null)} className="text-white/80 hover:text-white font-bold text-lg">&times;</button>
-          </div>
-        </div>
-      )}
+      {toast && <Toast message={toast.message} type={toast.type} onClose={closeToast} />}
 
-      {confirmModal?.show && (
-        <div className="fixed inset-0 bg-slate-900/60 flex items-center justify-center z-[70] backdrop-blur-sm">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6 text-center space-y-4">
-            <div className="w-12 h-12 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto">
-              <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
-            </div>
-            <h3 className="font-heading text-xl text-[#004aad]">{confirmModal.title}</h3>
-            <p className="font-body text-sm text-slate-500">Essa ação alterará o status da matrícula para cancelado no sistema.</p>
-            <div className="flex gap-3 pt-2">
-              <button onClick={() => setConfirmModal(null)} className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold py-2.5 rounded-lg text-sm">Voltar</button>
-              <button onClick={confirmModal.onConfirm} className="flex-1 bg-red-600 hover:bg-red-700 text-white font-bold py-2.5 rounded-lg text-sm">Confirmar</button>
-            </div>
-          </div>
-        </div>
-      )}
+      <ConfirmDialog
+        open={Boolean(confirmModal?.show)}
+        title={confirmModal?.title || ""}
+        description="Essa ação alterará o status da matrícula para cancelado no sistema."
+        cancelLabel="Voltar"
+        onCancel={() => setConfirmModal(null)}
+        onConfirm={() => confirmModal?.onConfirm()}
+      />
 
       <div className="mb-8 flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
         <div>
@@ -257,7 +171,7 @@ export default function MatriculasPage() {
                 <div className="col-span-2 font-bold text-[#004aad]">
                   {mat.student_name}
                   <span className="block text-xs text-slate-500 font-medium mt-0.5">
-                    <strong className="text-[#38b6ff] mr-1">{formatMatriculaId(mat.id)}</strong> • {mat.course_name} (R$ {mat.final_price.toFixed(2)})
+                    <strong className="text-[#38b6ff] mr-1">{formatEnrollmentId(mat.id)}</strong> • {mat.course_name} (R$ {mat.final_price.toFixed(2)})
                   </span>
                 </div>
                 <div className="text-slate-600 font-semibold text-sm">{mat.payment_method}</div>
@@ -338,7 +252,7 @@ export default function MatriculasPage() {
             </div>
             <form onSubmit={handleUpdateStatus} className="p-6 space-y-4 font-body">
               <p className="text-sm text-slate-500 mb-2">
-                Nº Matrícula: <strong className="text-[#38b6ff]">{formatMatriculaId(selectedMatricula.id)}</strong><br/>
+                Nº Matrícula: <strong className="text-[#38b6ff]">{formatEnrollmentId(selectedMatricula.id)}</strong><br/>
                 Aluno: <strong className="text-[#004aad]">{selectedMatricula.student_name}</strong> | Turma: <strong className="text-[#004aad]">{selectedMatricula.course_name}</strong>
               </p>
               

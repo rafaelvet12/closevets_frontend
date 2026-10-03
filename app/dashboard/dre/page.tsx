@@ -1,64 +1,39 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { API_BASE_URL } from "@/app/config";
-
-interface Cohort {
-  id: number;
-  internal_name: string;
-  price?: number;
-}
-
-interface DREData {
-  total_gross?: number;
-  total_discount?: number;
-  total_income: number;
-  total_expense: number;
-  profit: number;
-  margin_percentage: number;
-}
-
-interface Enrollment {
-  id: number;
-  cohort_id: number;
-  full_price?: number;
-  discount?: number;
-  final_price: number;
-  status: string;
-}
+import { errorMessage } from "@/app/lib/api";
+import { getCohortDre, getGlobalDre, listCohorts, listEnrollments } from "@/app/services/closevets";
+import type { Cohort, DreReport, Enrollment } from "@/app/types/domain";
 
 export default function DREPage() {
   const [turmas, setTurmas] = useState<Cohort[]>([]);
   const [matriculas, setMatriculas] = useState<Enrollment[]>([]);
   const [selectedCohort, setSelectedCohort] = useState("");
-  const [dreData, setDreData] = useState<DREData | null>(null);
+  const [dreData, setDreData] = useState<DreReport | null>(null);
   const [loading, setLoading] = useState(false);
+  const [loadError, setLoadError] = useState("");
 
   useEffect(() => {
-    Promise.all([
-      fetch(`${API_BASE_URL}/turmas/`).then(res => res.json()),
-      fetch(`${API_BASE_URL}/matriculas/`).then(res => res.json())
-    ])
+    Promise.all([listCohorts(), listEnrollments()])
       .then(([turmasData, matriculasData]) => {
         setTurmas(turmasData);
         setMatriculas(matriculasData);
       })
-      .catch(err => console.error(err));
+      .catch((error) => setLoadError(errorMessage(error, "Erro ao carregar turmas e matrículas.")));
   }, []);
 
   useEffect(() => {
     if (!selectedCohort) { setDreData(null); return; }
-    
-    setLoading(true);
-    // Se selecionou "global", busca a rota unificada. Se não, busca a DRE específica da turma.
-    const endpoint = selectedCohort === "global"
-      ? `${API_BASE_URL}/finance/dre/global`
-      : `${API_BASE_URL}/dashboard/dre/${selectedCohort}`;
 
-    fetch(endpoint)
-      .then(res => res.json())
-      .then(data => setDreData(data))
-      .catch(err => console.error(err))
+    setLoading(true);
+    setLoadError("");
+    const request = selectedCohort === "global" ? getGlobalDre() : getCohortDre(selectedCohort);
+    request
+      .then((data) => setDreData(data))
+      .catch((error) => {
+        setDreData(null);
+        setLoadError(errorMessage(error, "Erro ao calcular a DRE."));
+      })
       .finally(() => setLoading(false));
   }, [selectedCohort]);
 
@@ -106,6 +81,10 @@ export default function DREPage() {
           </optgroup>
         </select>
       </div>
+
+      {loadError && (
+        <div className="mb-6 bg-red-50 text-red-600 font-body p-4 rounded-xl text-sm">{loadError}</div>
+      )}
 
       {loading && (
         <div className="p-8 text-center">

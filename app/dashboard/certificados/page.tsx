@@ -1,41 +1,28 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { API_BASE_URL } from "@/app/config";
-
-interface CertificateData {
-  id: number;
-  enrollment_id: number;
-  uuid_code: string;
-  status: string;
-  issued_at: string;
-  snapshot_data: {
-    aluno_nome: string;
-    curso_nome: string;
-    turma_codigo: string;
-    carga_horaria: number;
-  };
-}
+import EmptyState from "@/app/components/empty-state";
+import Modal from "@/app/components/modal";
+import PageHeader from "@/app/components/page-header";
+import Toast from "@/app/components/toast";
+import { useToast } from "@/app/hooks/useToast";
+import { errorMessage } from "@/app/lib/api";
+import { downloadCertificate, issueCertificate, listCertificates } from "@/app/services/closevets";
+import type { Certificate } from "@/app/types/domain";
 
 export default function CertificadosPage() {
-  const [certificados, setCertificados] = useState<CertificateData[]>([]);
+  const [certificados, setCertificados] = useState<Certificate[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [matriculaId, setMatriculaId] = useState("");
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
-  const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
-
-  const showToast = (message: string, type: "success" | "error" = "success") => {
-    setToast({ message, type });
-    setTimeout(() => setToast(null), 5000);
-  };
+  const { toast, showToast, closeToast } = useToast(5000);
 
   const fetchCertificados = async () => {
     try {
-      const res = await fetch(`${API_BASE_URL}/certificados/`);
-      if (res.ok) setCertificados(await res.json());
+      setCertificados(await listCertificates());
     } catch (error) {
-      console.error("Erro ao buscar certificados:", error);
+      showToast(errorMessage(error, "Erro ao buscar certificados."), "error");
     }
   };
 
@@ -50,32 +37,24 @@ export default function CertificadosPage() {
     const cleanId = matriculaId.replace(/\D/g, "");
 
     try {
-      const res = await fetch(`${API_BASE_URL}/certificados/`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ enrollment_id: Number(cleanId) }),
-      });
-      
-      const data = await res.json();
-      
-      if (res.ok) {
-        setIsModalOpen(false);
-        setMatriculaId("");
-        fetchCertificados();
-        showToast(`Sucesso! Certificado ${data.uuid_code} emitido.`);
-      } else {
-        // Exibe a mensagem de bloqueio (se não estiver CONCLUIDO)
-        showToast(data.detail || "Erro ao emitir certificado.", "error");
-      }
+      const data = await issueCertificate(Number(cleanId));
+      setIsModalOpen(false);
+      setMatriculaId("");
+      fetchCertificados();
+      showToast(`Sucesso! Certificado ${data.uuid_code} emitido.`);
     } catch (error) {
-      showToast("Erro de conexão.", "error");
+      showToast(errorMessage(error, "Erro de conexão."), "error");
     } finally {
       setLoading(false);
     }
   };
 
-  const handleDownload = (uuid: string) => {
-    window.open(`${API_BASE_URL}/certificados/${uuid}/download`, "_blank");
+  const handleDownload = async (uuid: string) => {
+    try {
+      await downloadCertificate(uuid);
+    } catch (error) {
+      showToast(errorMessage(error, "Não foi possível baixar o certificado."), "error");
+    }
   };
 
   const filtered = certificados.filter(c => 
@@ -85,28 +64,18 @@ export default function CertificadosPage() {
 
   return (
     <div className="animate-fade-in">
-      {toast && (
-        <div className="fixed bottom-6 right-6 z-[80]">
-          <div className={`px-6 py-4 rounded-xl shadow-2xl flex items-center gap-4 text-white font-body text-sm font-semibold ${toast.type === "success" ? "bg-[#004aad] border border-[#38b6ff]" : "bg-red-600"}`}>
-            <span>{toast.message}</span>
-            <button onClick={() => setToast(null)} className="text-white/80 hover:text-white font-bold text-lg">&times;</button>
-          </div>
-        </div>
-      )}
+      {toast && <Toast message={toast.message} type={toast.type} onClose={closeToast} />}
 
-      <div className="mb-8 flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
-        <div>
-          <h1 className="font-heading text-4xl text-[#004aad] uppercase">Módulo de Certificados</h1>
-          <p className="font-body text-slate-500 mt-1">Emissão automática baseada em histórico congelado por Snapshot.</p>
-        </div>
-        
-        <div className="flex items-center gap-4 w-full md:w-auto">
-          <input type="text" placeholder="Buscar por código ou aluno..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full md:w-64 px-4 py-3 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#38b6ff] text-slate-700 font-body text-sm shadow-sm" />
-          <button onClick={() => setIsModalOpen(true)} className="bg-[#004aad] hover:bg-[#003882] text-white font-heading px-6 py-3 rounded-lg shadow-sm whitespace-nowrap">
-            EMITIR CERTIFICADO
-          </button>
-        </div>
-      </div>
+      <PageHeader
+        title="Módulo de Certificados"
+        description="Emissão automática baseada em histórico congelado por Snapshot."
+        search={searchTerm}
+        searchPlaceholder="Buscar por código ou aluno..."
+        onSearch={setSearchTerm}
+        actionLabel="EMITIR CERTIFICADO"
+        actionClassName="bg-[#004aad] hover:bg-[#003882] text-white font-heading px-6 py-3 rounded-lg shadow-sm whitespace-nowrap"
+        onAction={() => setIsModalOpen(true)}
+      />
 
       <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
         <div className="bg-[#f8fafc] grid grid-cols-6 p-4 border-b border-slate-100 font-body font-bold text-slate-500 text-sm uppercase tracking-wider">
@@ -117,7 +86,7 @@ export default function CertificadosPage() {
         </div>
         
         {filtered.length === 0 ? (
-          <div className="p-12 text-center text-slate-500 font-body">Nenhum certificado emitido.</div>
+          <EmptyState message="Nenhum certificado emitido." />
         ) : (
           <div className="divide-y divide-slate-100">
             {filtered.map((cert) => (
@@ -142,12 +111,7 @@ export default function CertificadosPage() {
       </div>
 
       {isModalOpen && (
-        <div className="fixed inset-0 bg-slate-900/60 flex items-center justify-center z-50 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm overflow-hidden">
-             <div className="bg-[#004aad] p-5 text-white flex justify-between items-center">
-              <h2 className="font-heading text-xl uppercase">Nova Emissão</h2>
-              <button onClick={() => setIsModalOpen(false)} className="text-white/70 hover:text-white text-xl">&times;</button>
-            </div>
+        <Modal title="Nova Emissão" onClose={() => setIsModalOpen(false)} maxWidth="max-w-sm">
             <form onSubmit={handleEmitir} className="p-6 space-y-4 font-body">
               <div>
                 <label className="block text-sm font-semibold text-[#004aad] mb-1">Número da Matrícula</label>
@@ -171,8 +135,7 @@ export default function CertificadosPage() {
                 </button>
               </div>
             </form>
-          </div>
-        </div>
+        </Modal>
       )}
     </div>
   );

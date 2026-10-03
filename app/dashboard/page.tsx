@@ -1,7 +1,10 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { API_BASE_URL } from "@/app/config";
+import Toast from "@/app/components/toast";
+import { useToast } from "@/app/hooks/useToast";
+import { errorMessage } from "@/app/lib/api";
+import { listCohorts, listEnrollments, listStudents } from "@/app/services/closevets";
 
 interface DashboardStats {
   totalAlunos: number;
@@ -28,23 +31,20 @@ export default function DashboardPage() {
   const [recentEnrollments, setRecentEnrollments] = useState<RecentEnrollment[]>([]);
   const [loading, setLoading] = useState(true);
   const [userRole, setUserRole] = useState<string | null>(null);
+  const { toast, showToast, closeToast } = useToast();
 
   useEffect(() => {
     setUserRole(localStorage.getItem("closevets_role") || "recepcao");
 
     const fetchDashboardData = async () => {
       try {
-        const [resAlunos, resTurmas, resMatriculas] = await Promise.all([
-          fetch(`${API_BASE_URL}/alunos/`),
-          fetch(`${API_BASE_URL}/turmas/`),
-          fetch(`${API_BASE_URL}/matriculas/`)
+        const [alunos, turmas, matriculas] = await Promise.all([
+          listStudents(),
+          listCohorts(),
+          listEnrollments(),
         ]);
 
-        const alunos = resAlunos.ok ? await resAlunos.json() : [];
-        const turmas = resTurmas.ok ? await resTurmas.json() : [];
-        const matriculas = resMatriculas.ok ? await resMatriculas.json() : [];
-
-        const receita = matriculas.reduce((acc: number, mat: any) => acc + (mat.final_price || 0), 0);
+        const receita = matriculas.reduce((total, item) => total + (item.final_price || 0), 0);
 
         setStats({
           totalAlunos: alunos.length,
@@ -55,14 +55,14 @@ export default function DashboardPage() {
 
         setRecentEnrollments(matriculas.slice(-5).reverse());
       } catch (error) {
-        console.error("Erro ao carregar dados do dashboard:", error);
+        showToast(errorMessage(error, "Erro ao carregar dados do dashboard."), "error");
       } finally {
         setLoading(false);
       }
     };
 
     fetchDashboardData();
-  }, []);
+  }, [showToast]);
 
   if (loading) {
     return (
@@ -77,6 +77,7 @@ export default function DashboardPage() {
 
   return (
     <div className="animate-fade-in">
+      {toast && <Toast message={toast.message} type={toast.type} onClose={closeToast} />}
       <div className="mb-8 flex justify-between items-end">
         <div>
           <h1 className="font-heading text-4xl text-[#004aad] uppercase">Visão Geral</h1>
@@ -115,7 +116,7 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {userRole === "coordenacao" && (
+        {userRole === "admin" && (
           <div className="bg-[#004aad] p-6 rounded-2xl shadow-md flex items-center gap-5 cursor-default relative overflow-hidden">
             <div className="absolute -right-4 -top-4 w-24 h-24 bg-white/10 rounded-full blur-2xl"></div>
             <div className="w-14 h-14 rounded-full bg-white/20 flex items-center justify-center text-[#d4ed31] z-10">

@@ -47,7 +47,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             Visão Geral
           </Link>
 
-          {userRole === "coordenacao" && (
+          {userRole === "admin" && (
             <Link href="/dashboard/dre" className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${isActive('/dashboard/dre') ? 'bg-white/10 text-[#d4ed31]' : 'hover:bg-white/5'}`}>
               <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
               Relatórios e DRE
@@ -88,7 +88,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             Matrículas
           </Link>
 
-          {userRole === "coordenacao" && (
+          {userRole === "admin" && (
             <Link href="/dashboard/financeiro" className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${isActive('/dashboard/financeiro') ? 'bg-white/10 text-[#d4ed31]' : 'hover:bg-white/5'}`}>
               <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
               Caixa Financeiro
@@ -112,11 +112,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       <main className="flex-1 p-10 overflow-y-auto">
         <header className="mb-10 flex justify-end">
           <div className="bg-white px-5 py-2 rounded-full shadow-sm border border-slate-100 flex items-center gap-3">
-             <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white font-bold font-body ${userRole === 'coordenacao' ? 'bg-[#38b6ff]' : 'bg-slate-400'}`}>
-                {userRole === 'coordenacao' ? 'C' : 'R'}
+             <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white font-bold font-body ${userRole === 'admin' ? 'bg-[#38b6ff]' : 'bg-slate-400'}`}>
+                {userRole === 'admin' ? 'C' : 'R'}
              </div>
              <span className="font-body text-sm font-semibold text-slate-700">
-                {userRole === 'coordenacao' ? 'Coordenação' : 'Recepção'}
+                {userRole === 'admin' ? 'Coordenação' : 'Recepção'}
              </span>
           </div>
         </header>

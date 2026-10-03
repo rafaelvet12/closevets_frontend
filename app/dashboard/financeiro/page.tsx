@@ -1,37 +1,15 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { API_BASE_URL } from "@/app/config";
-
-interface Transaction {
-  id: number;
-  type: string;
-  category: string;
-  description: string;
-  amount_gross: number;
-  discount_or_fee: number;
-  amount_net: number;
-  due_date: string;
-  paid_at?: string | null;
-  status: string;
-  cohort_id?: number | null;
-}
-
-interface Cohort {
-  id: number;
-  internal_name: string;
-  price?: number;
-}
+import Toast from "@/app/components/toast";
+import { useToast } from "@/app/hooks/useToast";
+import { errorMessage } from "@/app/lib/api";
+import { isIncomeType, isPaidStatus, isPendingStatus } from "@/app/lib/finance-status";
+import { currentYearMonth, formatIsoDateToBr, formatMonthLabel, maskCurrency, parseCurrency, todayIsoDate } from "@/app/lib/format";
+import { listCohorts, listTransactions, saveTransaction, updateTransactionStatus } from "@/app/services/closevets";
+import type { Cohort, Transaction } from "@/app/types/domain";
 
 export default function FinanceiroPage() {
-  // Pega o mês atual no formato AAAA-MM (ex: 2026-09) para usar como padrão
-  const getLocalCurrentMonth = () => {
-    const d = new Date();
-    const yyyy = d.getFullYear();
-    const mm = String(d.getMonth() + 1).padStart(2, '0');
-    return `${yyyy}-${mm}`;
-  };
-
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [turmas, setTurmas] = useState<Cohort[]>([]);
   
@@ -45,7 +23,7 @@ export default function FinanceiroPage() {
   const [filterType, setFilterType] = useState("ALL");
   const [filterStatus, setFilterStatus] = useState("ALL");
   // O filtro agora nasce travado no mês atual, e não mais em "ALL"
-  const [filterMonth, setFilterMonth] = useState(getLocalCurrentMonth());
+  const [filterMonth, setFilterMonth] = useState(currentYearMonth());
 
   const [type, setType] = useState("EXPENSE");
   const [category, setCategory] = useState("Pagamento de Professor");
@@ -56,23 +34,15 @@ export default function FinanceiroPage() {
   const [cohortId, setCohortId] = useState("");
   const [status, setStatus] = useState("PENDING");
 
-  const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
-
-  const showToast = (message: string, type: "success" | "error" = "success") => {
-    setToast({ message, type });
-    setTimeout(() => setToast(null), 4000);
-  };
+  const { toast, showToast, closeToast } = useToast();
 
   const fetchData = async () => {
     try {
-      const [resFinance, resTurmas] = await Promise.all([
-        fetch(`${API_BASE_URL}/finance/`),
-        fetch(`${API_BASE_URL}/turmas/`)
-      ]);
-      if (resFinance.ok) setTransactions(await resFinance.json());
-      if (resTurmas.ok) setTurmas(await resTurmas.json());
+      const [financeData, turmasData] = await Promise.all([listTransactions(), listCohorts()]);
+      setTransactions(financeData);
+      setTurmas(turmasData);
     } catch (error) {
-      console.error("Erro ao buscar dados:", error);
+      showToast(errorMessage(error, "Erro ao buscar dados."), "error");
     }
   };
 
@@ -85,21 +55,8 @@ export default function FinanceiroPage() {
     }
   }, [type, isEditMode]);
 
-  const isPaid = (s: string) => ["PAID", "PAGO", "LIQUIDADO"].includes(s.toUpperCase());
-  const isPending = (s: string) => ["PENDING", "PENDENTE", "A PAGAR", "A RECEBER"].includes(s.toUpperCase());
-  const isIncome = (t: string) => ["INCOME", "RECEITA", "ENTRADA"].includes(t.toUpperCase());
-
-  const handleCurrencyChange = (e: React.ChangeEvent<HTMLInputElement>, setter: React.Dispatch<React.SetStateAction<string>>) => {
-    let value = e.target.value.replace(/\D/g, "");
-    if (!value) { setter(""); return; }
-    const floatValue = Number(value) / 100;
-    setter(floatValue.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
-  };
-
-  const formatDateToBR = (dateString: string) => {
-    if (!dateString) return "";
-    const [year, month, day] = dateString.split("-");
-    return `${day}/${month}/${year}`;
+  const handleCurrencyChange = (event: React.ChangeEvent<HTMLInputElement>, setter: React.Dispatch<React.SetStateAction<string>>) => {
+    setter(maskCurrency(event.target.value));
   };
 
   const handleCohortChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -120,95 +77,81 @@ export default function FinanceiroPage() {
 
   const handleOpenEditModal = (t: Transaction) => {
     setIsEditMode(true); setSelectedTransactionId(t.id);
-    setType(isIncome(t.type) ? "INCOME" : "EXPENSE"); 
+    setType(isIncomeType(t.type) ? "INCOME" : "EXPENSE"); 
     setCategory(t.category); setDescription(t.description); 
     setAmountGross(t.amount_gross.toLocaleString("pt-BR", { minimumFractionDigits: 2 })); 
     setDiscountFee(t.discount_or_fee.toLocaleString("pt-BR", { minimumFractionDigits: 2 })); 
     setDueDate(t.due_date); setCohortId(t.cohort_id ? String(t.cohort_id) : ""); 
-    setStatus(isPaid(t.status) ? "PAID" : isPending(t.status) ? "PENDING" : "CANCELLED"); 
+    setStatus(isPaidStatus(t.status) ? "PAID" : isPendingStatus(t.status) ? "PENDING" : "CANCELLED"); 
     setIsModalOpen(true);
   };
 
   const handleSaveTransaction = async (e: React.FormEvent) => {
     e.preventDefault(); setLoading(true);
     
-    const grossNumeric = Number(amountGross.replace(/\./g, "").replace(",", ".")) || 0;
-    const discountNumeric = Number(discountFee.replace(/\./g, "").replace(",", ".")) || 0;
+    const grossNumeric = parseCurrency(amountGross);
+    const discountNumeric = parseCurrency(discountFee);
 
     const payload = {
       type: type, category: category, description: description,
       amount_gross: grossNumeric, discount_or_fee: discountNumeric,
       due_date: dueDate, status: status,
       cohort_id: cohortId ? Number(cohortId) : null,
-      paid_at: status === "PAID" ? new Date().toISOString().split('T')[0] : null
+      paid_at: status === "PAID" ? todayIsoDate() : null
     };
 
     try {
-      const url = isEditMode ? `${API_BASE_URL}/finance/${selectedTransactionId}` : `${API_BASE_URL}/finance/`;
-      const method = isEditMode ? "PUT" : "POST";
-
-      const res = await fetch(url, {
-        method: method, headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-
-      if (res.ok) {
-        setIsModalOpen(false); fetchData(); showToast(isEditMode ? "Transação atualizada!" : "Transação registrada!");
-      } else {
-        const data = await res.json(); showToast(data.detail || "Erro ao salvar", "error");
-      }
-    } catch (error) { showToast("Erro de conexão.", "error"); } finally { setLoading(false); }
+      await saveTransaction(isEditMode ? selectedTransactionId : null, payload);
+      setIsModalOpen(false);
+      fetchData();
+      showToast(isEditMode ? "Transação atualizada!" : "Transação registrada!");
+    } catch (error) {
+      showToast(errorMessage(error, "Erro de conexão."), "error");
+    } finally { setLoading(false); }
   };
 
   const handleQuickStatusChange = async (id: number, newStatus: string) => {
     try {
-      const payload = { status: newStatus, paid_at: newStatus === "PAID" ? new Date().toISOString().split('T')[0] : null };
-      const res = await fetch(`${API_BASE_URL}/finance/${id}`, {
-        method: "PUT", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload)
+      await updateTransactionStatus(id, {
+        status: newStatus,
+        paid_at: newStatus === "PAID" ? todayIsoDate() : null,
       });
-      if (res.ok) { fetchData(); showToast("Status atualizado!"); }
-    } catch (e) { showToast("Erro na comunicação", "error"); }
+      fetchData();
+      showToast("Status atualizado!");
+    } catch (error) {
+      showToast(errorMessage(error, "Erro na comunicação."), "error");
+    }
   };
 
   // Garante que o mês atual sempre apareça no seletor, mesmo se não houver lançamentos nele ainda
   const availableMonths = Array.from(new Set([
-    getLocalCurrentMonth(), 
+    currentYearMonth(), 
     ...transactions.map(t => t.due_date?.substring(0, 7)).filter(Boolean)
   ])).sort().reverse();
   
-  const formatMonthBR = (yyyyMm: string) => { const [y, m] = yyyyMm.split("-"); return `${m}/${y}`; };
-
   const monthFilteredTransactions = filterMonth === "ALL" 
     ? transactions 
     : transactions.filter(t => t.due_date?.startsWith(filterMonth));
 
-  const receitasPagas = monthFilteredTransactions.filter(t => isIncome(t.type) && isPaid(t.status)).reduce((acc, curr) => acc + curr.amount_net, 0);
-  const despesasPagas = monthFilteredTransactions.filter(t => !isIncome(t.type) && isPaid(t.status)).reduce((acc, curr) => acc + curr.amount_net, 0);
+  const receitasPagas = monthFilteredTransactions.filter(t => isIncomeType(t.type) && isPaidStatus(t.status)).reduce((acc, curr) => acc + curr.amount_net, 0);
+  const despesasPagas = monthFilteredTransactions.filter(t => !isIncomeType(t.type) && isPaidStatus(t.status)).reduce((acc, curr) => acc + curr.amount_net, 0);
   const saldoCaixa = receitasPagas - despesasPagas;
 
   const filteredTransactions = transactions.filter(t => {
     const matchSearch = t.description.toLowerCase().includes(searchTerm.toLowerCase()) || t.category.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchType = filterType === "ALL" || (filterType === "INCOME" ? isIncome(t.type) : !isIncome(t.type));
+    const matchType = filterType === "ALL" || (filterType === "INCOME" ? isIncomeType(t.type) : !isIncomeType(t.type));
     const matchMonth = filterMonth === "ALL" || t.due_date?.startsWith(filterMonth);
     
     let matchStatus = true;
-    if (filterStatus === "PAID") matchStatus = isPaid(t.status);
-    if (filterStatus === "PENDING") matchStatus = isPending(t.status);
+    if (filterStatus === "PAID") matchStatus = isPaidStatus(t.status);
+    if (filterStatus === "PENDING") matchStatus = isPendingStatus(t.status);
 
     return matchSearch && matchType && matchMonth && matchStatus;
   });
 
   return (
     <div className="animate-fade-in">
-      {toast && (
-        <div className="fixed bottom-6 right-6 z-[80]">
-          <div className={`px-6 py-4 rounded-xl shadow-2xl flex items-center gap-4 text-white font-body text-sm font-semibold ${toast.type === "success" ? "bg-[#004aad] border border-[#38b6ff]" : "bg-red-600"}`}>
-            <span>{toast.message}</span>
-            <button onClick={() => setToast(null)} className="text-white/80 hover:text-white font-bold text-lg">&times;</button>
-          </div>
-        </div>
-      )}
+      {toast && <Toast message={toast.message} type={toast.type} onClose={closeToast} />}
 
       <div className="mb-8 flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
         <div>
@@ -277,7 +220,7 @@ export default function FinanceiroPage() {
             >
               <option value="ALL">🗓️ Todos os Meses</option>
               {availableMonths.map(m => (
-                <option key={m} value={m}>{formatMonthBR(m)}</option>
+                <option key={m} value={m}>{formatMonthLabel(m)}</option>
               ))}
             </select>
           </div>
@@ -301,23 +244,23 @@ export default function FinanceiroPage() {
               <div key={t.id} className="grid grid-cols-6 p-4 items-center hover:bg-slate-50 transition-colors font-body text-slate-700">
                 <div className="col-span-2">
                   <div className="font-bold flex items-center gap-2 text-slate-800">
-                    <span className={`w-2 h-2 rounded-full ${isIncome(t.type) ? 'bg-green-500' : 'bg-red-500'}`}></span>
+                    <span className={`w-2 h-2 rounded-full ${isIncomeType(t.type) ? 'bg-green-500' : 'bg-red-500'}`}></span>
                     {t.description}
                   </div>
                   <span className="block text-xs text-slate-400 font-medium mt-0.5 ml-4">{t.category}</span>
                 </div>
-                <div className="text-slate-600 text-sm font-medium">{formatDateToBR(t.due_date)}</div>
-                <div className={`text-sm font-bold ${isIncome(t.type) ? 'text-green-600' : 'text-red-600'}`}>
-                  {isIncome(t.type) ? '+' : '-'} R$ {Number(t.amount_net).toLocaleString("pt-BR", {minimumFractionDigits: 2})}
+                <div className="text-slate-600 text-sm font-medium">{formatIsoDateToBr(t.due_date)}</div>
+                <div className={`text-sm font-bold ${isIncomeType(t.type) ? 'text-green-600' : 'text-red-600'}`}>
+                  {isIncomeType(t.type) ? '+' : '-'} R$ {Number(t.amount_net).toLocaleString("pt-BR", {minimumFractionDigits: 2})}
                 </div>
                 <div>
-                  <span className={`px-2.5 py-1 rounded-md text-xs font-bold uppercase ${isPaid(t.status) ? 'bg-green-100 text-green-700' : isPending(t.status) ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-500'}`}>
-                    {isPaid(t.status) ? 'Liquidado' : isPending(t.status) ? 'Pendente' : 'Cancelado'}
+                  <span className={`px-2.5 py-1 rounded-md text-xs font-bold uppercase ${isPaidStatus(t.status) ? 'bg-green-100 text-green-700' : isPendingStatus(t.status) ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-500'}`}>
+                    {isPaidStatus(t.status) ? 'Liquidado' : isPendingStatus(t.status) ? 'Pendente' : 'Cancelado'}
                   </span>
                 </div>
                 <div className="text-right flex items-center justify-end gap-3">
                   <button onClick={() => handleOpenEditModal(t)} className="text-slate-400 hover:text-[#004aad] font-semibold text-sm">Editar</button>
-                  {isPending(t.status) && (
+                  {isPendingStatus(t.status) && (
                     <button onClick={() => handleQuickStatusChange(t.id, "PAID")} className="text-green-600 hover:text-green-800 font-bold text-sm">Dar Baixa</button>
                   )}
                 </div>
