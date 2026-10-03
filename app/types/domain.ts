@@ -50,6 +50,8 @@ export interface Cohort {
   hours: number;
   course_id: number;
   status: string;
+  start_date?: string | null;
+  end_date?: string | null;
 }
 
 export interface CohortPayload {
@@ -59,6 +61,8 @@ export interface CohortPayload {
   hours: number;
   price: number;
   status: string;
+  start_date: string;
+  end_date: string;
 }
 
 export interface Instructor {

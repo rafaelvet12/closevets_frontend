@@ -3,7 +3,7 @@
 import { useState, useEffect, use } from "react";
 import Link from "next/link";
 
-import { maskPublicCpf } from "@/app/lib/format";
+import { formatCoursePeriod, maskPublicCpf } from "@/app/lib/format";
 import { validateCertificate } from "@/app/services/closevets";
 import type { CertificateValidation } from "@/app/types/domain";
 
@@ -63,6 +63,7 @@ export default function ValidarCertificadoPage({ params }: { params: Promise<{ c
 
   const status = certData.status.toUpperCase();
   const isCancelled = status === "CANCELLED" || status === "CANCELADO";
+  const periodo = formatCoursePeriod(certData.snapshot_data.data_inicio, certData.snapshot_data.data_fim);
 
   return (
     <main className="min-h-screen bg-[#f8fafc] py-12 px-4 sm:px-6 flex flex-col items-center justify-center font-body">
@@ -99,6 +100,10 @@ export default function ValidarCertificadoPage({ params }: { params: Promise<{ c
             <div>
               <span className="block text-xs font-semibold text-slate-400 uppercase">Turma / Edição</span>
               <p className="font-bold text-slate-800 text-base mt-0.5">{certData.snapshot_data.turma_codigo}</p>
+            </div>
+            <div>
+              <span className="block text-xs font-semibold text-slate-400 uppercase">Período do curso</span>
+              <p className="font-bold text-slate-800 text-base mt-0.5">{periodo || "Não informado"}</p>
             </div>
             <div>
               <span className="block text-xs font-semibold text-slate-400 uppercase">Data de Emissão</span>

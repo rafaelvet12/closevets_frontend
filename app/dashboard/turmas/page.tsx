@@ -5,7 +5,7 @@ import Link from "next/link";
 import Toast from "@/app/components/toast";
 import { useToast } from "@/app/hooks/useToast";
 import { errorMessage } from "@/app/lib/api";
-import { maskCurrency, parseCurrency } from "@/app/lib/format";
+import { formatCohortPeriod, maskCurrency, parseCurrency } from "@/app/lib/format";
 import { listCohorts, listCourses, saveCohort } from "@/app/services/closevets";
 import type { Cohort, Course } from "@/app/types/domain";
 
@@ -24,6 +24,9 @@ export default function TurmasPage() {
   const [price, setPrice] = useState("");
   const [hours, setHours] = useState("");
   const [courseId, setCourseId] = useState("");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+  const [status, setStatus] = useState("planejada");
 
   const { toast, showToast, closeToast } = useToast();
 
@@ -53,7 +56,8 @@ export default function TurmasPage() {
   const handleOpenCreateModal = () => {
     setIsEditMode(false);
     setSelectedTurmaId(null);
-    setInternalName(""); setCode(""); setPrice(""); setHours(""); setCourseId(""); 
+    setInternalName(""); setCode(""); setPrice(""); setHours(""); setCourseId("");
+    setStartDate(""); setEndDate(""); setStatus("planejada");
     setIsModalOpen(true);
   };
 
@@ -65,6 +69,9 @@ export default function TurmasPage() {
     setCourseId(String(t.course_id));
     setHours(String(t.hours));
     setPrice(Number(t.price).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
+    setStartDate((t.start_date || "").slice(0, 10));
+    setEndDate((t.end_date || "").slice(0, 10));
+    setStatus(t.status || "planejada");
     setIsModalOpen(true);
   };
 
@@ -72,6 +79,11 @@ export default function TurmasPage() {
     e.preventDefault();
     setLoading(true);
     const numericPrice = parseCurrency(price);
+    if (endDate < startDate) {
+      showToast("A data de término não pode ser anterior à data de início.", "error");
+      setLoading(false);
+      return;
+    }
 
     const payload = {
       internal_name: internalName,
@@ -79,7 +91,9 @@ export default function TurmasPage() {
       course_id: Number(courseId),
       hours: Number(hours),
       price: numericPrice,
-      status: "planejada"
+      status,
+      start_date: startDate,
+      end_date: endDate,
     };
 
     try {
@@ -129,6 +143,9 @@ export default function TurmasPage() {
               <div key={turma.id} className="grid grid-cols-5 p-4 items-center font-body text-slate-700 hover:bg-slate-50">
                 <div className="col-span-2 font-bold text-[#004aad]">{turma.internal_name}
                   <span className="block text-xs text-slate-400">Código: {turma.code}</span>
+                  <span className="block text-xs text-slate-500">
+                    {formatCohortPeriod(turma.start_date, turma.end_date) || "Sem período"}
+                  </span>
                 </div>
                 <div className="text-sm">{getCourseName(turma.course_id)}</div>
                 <div className="text-sm"><span className="font-semibold text-[#004aad]">R$ {Number(turma.price).toFixed(2)}</span> / {turma.hours}h</div>
@@ -148,7 +165,7 @@ export default function TurmasPage() {
 
       {isModalOpen && (
         <div className="fixed inset-0 bg-slate-900/60 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
             <div className="bg-[#004aad] p-5 text-white flex justify-between items-center">
               <h2 className="font-heading text-xl uppercase">{isEditMode ? "Editar Turma" : "Cadastrar Turma"}</h2>
               <button onClick={() => setIsModalOpen(false)} className="text-white/70 hover:text-white text-xl">&times;</button>
@@ -165,9 +182,19 @@ export default function TurmasPage() {
                 <div><label className="block text-sm font-semibold text-[#004aad] mb-1">Nome Interno</label><input required value={internalName} onChange={e=>setInternalName(e.target.value)} className="w-full px-4 py-3 rounded-lg border" placeholder="Ex: Turma Out/2026" /></div>
                 <div><label className="block text-sm font-semibold text-[#004aad] mb-1">Código da Turma</label><input required value={code} onChange={e=>setCode(e.target.value.toUpperCase())} className="w-full px-4 py-3 rounded-lg border" placeholder="Ex: T-OUT26" /></div>
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div><label className="block text-sm font-semibold text-[#004aad] mb-1">Carga Horária (h)</label><input required type="number" value={hours} onChange={e=>setHours(e.target.value)} className="w-full px-4 py-3 rounded-lg border" /></div>
                 <div><label className="block text-sm font-semibold text-[#004aad] mb-1">Valor Final (R$)</label><input required value={price} onChange={handlePriceChange} className="w-full px-4 py-3 rounded-lg border" placeholder="0,00" /></div>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-semibold text-[#004aad] mb-1">Data de início</label>
+                  <input required type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="w-full px-4 py-3 rounded-lg border" />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-[#004aad] mb-1">Data de término</label>
+                  <input required type="date" value={endDate} min={startDate || undefined} onChange={e => setEndDate(e.target.value)} className="w-full px-4 py-3 rounded-lg border" />
+                </div>
               </div>
               <div className="pt-4 flex gap-3">
                 <button type="button" onClick={() => setIsModalOpen(false)} className="flex-1 bg-slate-100 font-bold py-3 rounded-lg">CANCELAR</button>

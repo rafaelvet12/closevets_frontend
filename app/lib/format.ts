@@ -43,8 +43,49 @@ export function formatMoney(value: number): string {
 
 export function formatIsoDateToBr(dateString: string): string {
   if (!dateString) return "";
-  const [year, month, day] = dateString.split("-");
+  const [year, month, day] = dateString.slice(0, 10).split("-");
+  if (!year || !month || !day) return "";
   return `${day}/${month}/${year}`;
+}
+
+const MESES = [
+  "janeiro",
+  "fevereiro",
+  "março",
+  "abril",
+  "maio",
+  "junho",
+  "julho",
+  "agosto",
+  "setembro",
+  "outubro",
+  "novembro",
+  "dezembro",
+];
+
+export function formatLongDate(value?: string | null): string {
+  if (!value) return "";
+  const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(value);
+  if (!match) return "";
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  if (month < 1 || month > 12 || day < 1) return "";
+  return `${day} de ${MESES[month - 1]} de ${match[1]}`;
+}
+
+export function formatCoursePeriod(start?: string | null, end?: string | null): string {
+  const inicio = formatLongDate(start);
+  const fim = formatLongDate(end);
+  if (inicio && fim && inicio !== fim) return `de ${inicio} a ${fim}`;
+  const chosen = fim || inicio;
+  return chosen ? `no dia ${chosen}` : "";
+}
+
+export function formatCohortPeriod(start?: string | null, end?: string | null): string {
+  const inicio = formatIsoDateToBr(start || "");
+  const fim = formatIsoDateToBr(end || "");
+  if (inicio && fim) return `${inicio} a ${fim}`;
+  return inicio || fim;
 }
 
 export function formatMonthLabel(yearMonth: string): string {
