@@ -2,12 +2,9 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
 export function middleware(request: NextRequest) {
-  // Coloque aqui a sua lógica de verificação de token/sessão se houver
-  const token = request.cookies.get('token')?.value; // Exemplo de cookie
-
   // Se for a rota de login (raiz) ou páginas públicas, deixa passar
   const url = request.nextUrl.pathname;
-  if (url === '/' || url.startsWith('/api')) {
+  if (url === '/' || url.startsWith('/api') || url.startsWith('/validar')) {
     return NextResponse.next();
   }
 

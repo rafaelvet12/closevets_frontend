@@ -35,6 +35,7 @@ export async function api<T>(path: string, options: RequestInit = {}): Promise<T
     localStorage.removeItem("closevets_token");
     localStorage.removeItem("closevets_role");
     if (window.location.pathname !== "/" && !window.location.pathname.startsWith("/validar")) {
+      // eslint-disable-next-line @next/next/no-location-assign-relative-destination
       window.location.assign("/");
     }
   }

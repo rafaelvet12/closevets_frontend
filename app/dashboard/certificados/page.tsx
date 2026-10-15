@@ -124,7 +124,7 @@ export default function CertificadosPage() {
                   className="w-full px-4 py-3 rounded-lg border border-gray-200 text-slate-800 bg-white"
                 />
                 <p className="text-xs text-slate-400 mt-2 text-justify">
-                  Insira o ID da matrícula. O sistema bloqueará automaticamente a emissão caso o status da matrícula não esteja marcado como "CONCLUÍDO".
+                  Insira o ID da matrícula. O sistema bloqueará automaticamente a emissão caso o status da matrícula não esteja marcado como &quot;CONCLUÍDO&quot;.
                 </p>
               </div>
               
