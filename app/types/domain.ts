@@ -207,6 +207,34 @@ export interface CertificateValidation {
   issued_at: string;
 }
 
+export interface BatchCandidateStudent {
+  enrollment_id: number;
+  student_id: number;
+  student_name: string;
+  student_cpf: string;
+  enrollment_status: string;
+  is_completed: boolean;
+  has_certificate: boolean;
+  certificate_uuid?: string | null;
+  certificate_status?: string | null;
+  can_issue: boolean;
+}
+
+export interface BatchCertificateItemResult {
+  enrollment_id: number;
+  student_name: string;
+  success: boolean;
+  uuid_code?: string | null;
+  message: string;
+}
+
+export interface BatchCertificateResponse {
+  total_requested: number;
+  total_success: number;
+  total_failed: number;
+  results: BatchCertificateItemResult[];
+}
+
 export interface DreReport {
   total_gross?: number;
   total_discount?: number;

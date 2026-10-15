@@ -1,6 +1,8 @@
 import { API_BASE_URL, fetchWithAuth } from "@/app/config";
 import { ApiError, api } from "@/app/lib/api";
 import type {
+  BatchCandidateStudent,
+  BatchCertificateResponse,
   Certificate,
   CertificateValidation,
   Cohort,
@@ -177,3 +179,31 @@ export async function downloadCertificate(uuid: string): Promise<void> {
   anchor.remove();
   URL.revokeObjectURL(url);
 }
+
+export function listCohortCandidates(cohortId: number): Promise<BatchCandidateStudent[]> {
+  return api<BatchCandidateStudent[]>(`/certificados/turma/${cohortId}/candidatos`);
+}
+
+export function issueBatchCertificates(enrollmentIds: number[]): Promise<BatchCertificateResponse> {
+  return api<BatchCertificateResponse>("/certificados/lote", {
+    method: "POST",
+    body: JSON.stringify({ enrollment_ids: enrollmentIds }),
+  });
+}
+
+export async function downloadCohortCertificatesZip(cohortId: number, cohortCode: string): Promise<void> {
+  const response = await fetchWithAuth(`${API_BASE_URL}/certificados/turma/${cohortId}/download-zip`);
+  if (!response.ok) {
+    throw new ApiError("Não foi possível baixar os certificados da turma.");
+  }
+  const blob = await response.blob();
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = `Certificados_Turma_${cohortCode}.zip`;
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  URL.revokeObjectURL(url);
+}
+
