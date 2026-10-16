@@ -21,11 +21,21 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     }
   }, [router]);
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    try {
+      await fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://closevets-backend.onrender.com"}/auth/logout`, {
+        method: "POST",
+        credentials: "include",
+      });
+    } catch {
+      // Ignora erro de rede no logout
+    }
     localStorage.removeItem("closevets_token");
+    localStorage.removeItem("closevets_refresh_token");
     localStorage.removeItem("closevets_role");
     router.push("/");
   };
+
 
   if (isLoading) {
     return <div className="min-h-screen bg-[#f8fafc] flex items-center justify-center text-[#004aad] font-heading text-2xl">Carregando...</div>;

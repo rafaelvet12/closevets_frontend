@@ -247,8 +247,10 @@ export interface DreReport {
 export interface LoginResponse {
   access_token: string;
   token_type: string;
+  refresh_token?: string;
   role?: string;
 }
+
 
 export interface NamedOption {
   id: number;

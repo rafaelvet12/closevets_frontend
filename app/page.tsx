@@ -20,6 +20,9 @@ export default function Home() {
     try {
       const data = await login(email, password);
       localStorage.setItem("closevets_token", data.access_token);
+      if (data.refresh_token) {
+        localStorage.setItem("closevets_refresh_token", data.refresh_token);
+      }
       localStorage.setItem("closevets_role", data.role ? data.role.toLowerCase() : "recepcao");
       router.push("/dashboard");
     } catch (error) {
